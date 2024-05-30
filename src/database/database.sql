@@ -20,7 +20,7 @@ CREATE TABLE users (
     tenant_id INT NOT NULL REFERENCES tenants(tenant_id),
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'Employee')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('SuperAdmin', 'Admin', 'Employee')),
     phone_number VARCHAR(50) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     preferences JSONB,
@@ -46,7 +46,7 @@ CREATE TABLE guests (
     check_in TIMESTAMP NOT NULL,
     check_out TIMESTAMP NOT NULL,
     license_plate_number VARCHAR(255),
-    payment_method VARCHAR(255) NOT NULL,
+    payment_method VARCHAR(255) NOT NULL CHECK (payment_method IN ('Cash', 'Credit', 'Transfer')),
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
