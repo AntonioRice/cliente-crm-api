@@ -1,21 +1,26 @@
-const { Client } = require("pg");
+require("dotenv").config();
+const { Pool } = require("pg");
 
-const client = new Client({
-  host: "cliente-crm-db-instance.c1sk4ykmoshj.us-east-2.rds.amazonaws.com",
-  port: 5432,
-
+// Create a pool instance
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
   ssl: {
     rejectUnauthorized: false,
   },
 });
 
-client.connect((err) => {
+// Connect to the database
+pool.connect((err, client, release) => {
   if (err) {
-    console.error("Connection Error!", err.stack);
+    console.error("Error connecting to Database", err.stack);
     return;
   }
-
   console.log("Database connected.");
+  release();
 });
 
-module.exports = client;
+module.exports = pool;

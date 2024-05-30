@@ -17,17 +17,17 @@ app.post("/tenants", async (req, res) => {
       "INSERT INTO tenants (tenant_name, membership, status) VALUES($1, $2, $3) RETURNING *",
       [tenant_name, membership, status]
     );
-    res.json(newTenant);
-    client.end();
+    res.json(newTenant.rows);
   } catch (err) {
     console.error(err.message);
-    client.end();
   }
 });
 
 //get all tenants
 app.get("/tenants", async (req, res) => {
   try {
+    const tenants = await client.query("SELECT * FROM tenants");
+    res.json(tenants.rows);
   } catch (err) {
     console.error(err.message);
   }
@@ -60,7 +60,7 @@ app.listen(PORT, () => {
 process.on("unhandledRejection", (err) => {
   console.log(`Error: ${err.message}`);
   console.log("Shutting down the server due to unhandled promise rejection");
-  // app.close(() => {
+  // server.close(() => {
   //   process.exit(1);
   // });
 });
