@@ -1,3 +1,3 @@
 # cliente-api
 
-Backend API for cliente-crm
+API for cliente-crm
