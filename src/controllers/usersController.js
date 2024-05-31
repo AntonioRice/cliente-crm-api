@@ -61,4 +61,31 @@ const completeUserRegistration = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-module.exports = { createUser, completeUserRegistration };
+const getUserById = catchAsyncErrors(async (req, res, next) => {
+  console.log(req.params);
+  const userId = req.params.id;
+  const query = `
+  SELECT * FROM users
+  WHERE user_id = $1`;
+
+  try {
+    const user = await pool.query(query, [userId]);
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: `User: ${userId} not found`,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      total: user.rows.length,
+      data: user.rows[0],
+    });
+  } catch (err) {
+    return next(new ErrorHandler(`Error: Unable to retrieve User: ${userId}. Message: ${err.message}`, 500));
+  }
+});
+
+module.exports = { createUser, completeUserRegistration, getUserById };

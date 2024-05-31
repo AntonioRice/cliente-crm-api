@@ -5,15 +5,15 @@ const ErrorHandler = require("../utils/errorHandler");
 const sendToken = require("../utils/jwtToken");
 
 const login = catchAsyncErrors(async (req, res, next) => {
-  const { user_name, password } = req.body;
+  const { username, password } = req.body;
 
-  if (!user_name || !password) {
+  if (!username || !password) {
     return next(new ErrorHandler("Please enter user_name and password", 400));
   }
 
   // Query the user by user_name
   const query = "SELECT * FROM users WHERE user_name = $1";
-  const result = await pool.query(query, [user_name]);
+  const result = await pool.query(query, [username]);
 
   if (result.rows.length === 0) {
     return next(new ErrorHandler("Invalid user_name or password.", 401));
