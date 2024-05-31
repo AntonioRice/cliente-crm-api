@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
 
 const {
   createTenant,
@@ -8,10 +9,13 @@ const {
   updateTenant,
   deleteTenant,
 } = require("../controllers/tenantsController");
-// const { isAuthenticatedUser } = require("../middleware/auth");
 
-router.route("/tenants").post(createTenant);
-router.route("/tenants").get(getTenants);
-router.route("/tenants/:id").get(getTenantById).put(updateTenant).delete(deleteTenant);
+router.route("/tenants").post(authorizeRoles(isAuthenticatedUser, ["SuperAdmin"]), createTenant);
+router.route("/tenants").get(isAuthenticatedUser, authorizeRoles(["SuperAdmin"]), getTenants);
+router
+  .route("/tenants/:id")
+  .get(isAuthenticatedUser, authorizeRoles(["SuperAdmin"]), getTenantById)
+  .put(isAuthenticatedUser, authorizeRoles(["SuperAdmin"]), updateTenant)
+  .delete(isAuthenticatedUser, authorizeRoles(["SuperAdmin"]), deleteTenant);
 
 module.exports = router;

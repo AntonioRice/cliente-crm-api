@@ -15,8 +15,8 @@ const createTenant = catchAsyncErrors(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: `Tenant: ${newTenant.tenant_id} successfully created`,
-      data: newTenant,
+      message: `New Tenant: ${newTenant.rows[0].tenant_id} successfully created`,
+      data: newTenant.rows,
     });
   } catch (err) {
     return next(new ErrorHandler(`Error: Unable to create Tenant. Message: ${err.message}`, 500));
@@ -97,7 +97,7 @@ const deleteTenant = catchAsyncErrors(async (req, res, next) => {
   const tenantId = req.params.id;
   try {
     const query = `
-    DELETE FROM table
+    DELETE FROM tenants
     WHERE tenant_id = $1
     `;
 
