@@ -18,6 +18,7 @@ CREATE TABLE tenants (
 CREATE TABLE users (
     user_id SERIAL PRIMARY KEY,
     tenant_id INT NOT NULL REFERENCES tenants(tenant_id),
+    user_name VARCHAR(255) NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL CHECK (role IN ('SuperAdmin', 'Admin', 'Employee')),
@@ -75,3 +76,13 @@ CREATE TABLE reservation_guests (
     FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id),
     FOREIGN KEY (guest_id) REFERENCES guests(guest_id)
 );
+
+
+-- {
+--     "language": "en",
+--     "ui_mode": "dark",
+--     "notifications": {
+--         "email": true,
+--         "sms": false
+--     }
+-- }        

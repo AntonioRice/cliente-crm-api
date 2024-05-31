@@ -13,14 +13,20 @@ const pool = new Pool({
   },
 });
 
-// Connect to the database
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error("Error connecting to Database", err.stack);
-    return;
-  }
-  console.log("Database connected.");
-  release();
+// Log connection events
+pool.on("connect", () => {
+  console.log("Connected to the database.");
+});
+
+pool.on("remove", () => {
+  console.log("Client removed");
+});
+
+process.on("SIGINT", () => {
+  pool.end(() => {
+    console.log("pool has ended");
+    process.exit(0);
+  });
 });
 
 module.exports = pool;

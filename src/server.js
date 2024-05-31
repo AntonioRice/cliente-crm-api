@@ -2,52 +2,28 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const client = require("./database/db.js");
+const pool = require("./database/db");
+const errorMiddleware = require("./middleware/errorMiddleware");
+const tenants = require("./routes/tenants");
 
-//middleware
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-//routes
-//create a tenant
-app.post("/tenants", async (req, res) => {
-  try {
-    const { tenant_name, membership, status } = req.body;
-    const newTenant = await client.query(
-      "INSERT INTO tenants (tenant_name, membership, status) VALUES($1, $2, $3) RETURNING *",
-      [tenant_name, membership, status]
-    );
-    res.json(newTenant.rows);
-  } catch (err) {
-    console.error(err.message);
-  }
-});
+//Register Routes
+app.use("/api/v1", tenants);
 
-//get all tenants
-app.get("/tenants", async (req, res) => {
-  try {
-    const tenants = await client.query("SELECT * FROM tenants");
-    res.json(tenants.rows);
-  } catch (err) {
-    console.error(err.message);
-  }
-});
+// Middleware
+app.use(errorMiddleware);
 
-//update a tenant
-app.put("/tenants/:id", async (req, res) => {
-  try {
-  } catch (err) {
-    console.error(err.message);
+// Connect to the database
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error("Error connecting to Database", err.stack);
+    return;
   }
-});
-
-//delete a tenant
-
-app.delete("/tenants/:id", async (req, res) => {
-  try {
-  } catch (err) {
-    console.error(err.message);
-  }
+  console.log("Database connected.");
+  release();
 });
 
 const PORT = process.env.PORT;
@@ -60,7 +36,7 @@ app.listen(PORT, () => {
 process.on("unhandledRejection", (err) => {
   console.log(`Error: ${err.message}`);
   console.log("Shutting down the server due to unhandled promise rejection");
-  // server.close(() => {
-  //   process.exit(1);
-  // });
+  server.close(() => {
+    process.exit(1);
+  });
 });
