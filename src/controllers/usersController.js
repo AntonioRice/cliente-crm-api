@@ -62,10 +62,9 @@ const completeUserRegistration = catchAsyncErrors(async (req, res, next) => {
 });
 
 const getUserById = catchAsyncErrors(async (req, res, next) => {
-  console.log(req.params);
   const userId = req.params.id;
   const query = `
-  SELECT * FROM users
+  SELECT user_id, email, first_name, last_name, phone_number, preferences, role, tenant_id, user_name FROM users
   WHERE user_id = $1`;
 
   try {
