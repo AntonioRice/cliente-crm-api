@@ -4,14 +4,18 @@ const app = express();
 const cors = require("cors");
 const pool = require("./database/db");
 const errorMiddleware = require("./middleware/errorMiddleware");
+const auth = require("./routes/auth");
 const tenants = require("./routes/tenants");
+const users = require("./routes/users");
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 //Register Routes
+app.use("/api/v1", auth);
 app.use("/api/v1", tenants);
+app.use("/api/v1", users);
 
 // Middleware
 app.use(errorMiddleware);
