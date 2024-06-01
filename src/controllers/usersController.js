@@ -2,6 +2,8 @@ const bcrypt = require("bcryptjs");
 const pool = require("../database/db");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() });
 
 const createUser = catchAsyncErrors(async (req, res, next) => {
   const { tenant_id, user_name, first_name, last_name, role, email } = req.body;
@@ -64,7 +66,7 @@ const completeUserRegistration = catchAsyncErrors(async (req, res, next) => {
 const getUserById = catchAsyncErrors(async (req, res, next) => {
   const userId = req.params.id;
   const query = `
-  SELECT user_id, email, first_name, last_name, phone_number, preferences, role, tenant_id, user_name FROM users
+  SELECT user_id, email, first_name, last_name, phone_number, preferences, role, tenant_id, user_name, profile_picture FROM users
   WHERE user_id = $1`;
 
   try {
@@ -87,4 +89,76 @@ const getUserById = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-module.exports = { createUser, completeUserRegistration, getUserById };
+const updateProfilePic = catchAsyncErrors(upload.single("profile_picture"), async (req, res, next) => {
+  const { userId } = req.body;
+  const profilePicture = req.file.buffer;
+
+  try {
+    const query = `
+    UPDATE users 
+    SET profile_picture = $1, updated_date = CURRENT_TIMESTAMP 
+    WHERE user_id = $2
+    RETURNING user_id, email, first_name, last_name, phone_number, preferences, role, tenant_id, user_name, profile_picture
+  `;
+    const values = [profilePicture, userId];
+    const result = await pool.query(query, values);
+
+    res.status(200).json({
+      success: true,
+      message: "Profile picture updated successfully",
+      data: result.rows[0],
+    });
+  } catch (err) {
+    return next(
+      new ErrorHandler(`Error: Unable to Upload Profile Pic for User: ${userId}. Message: ${err.message}`, 500)
+    );
+  }
+});
+
+const updateUserById = catchAsyncErrors(async (req, res, next) => {
+  const { id: userId } = req.params;
+  const allowedFields = [
+    "tenant_id",
+    "user_name",
+    "first_name",
+    "last_name",
+    "role",
+    "phone_number",
+    "email",
+    "preferences",
+  ];
+  const values = [];
+  let setClause = [];
+  let counter = 1;
+
+  allowedFields.forEach((field) => {
+    if (req.body[field] !== undefined) {
+      setClause.push(`${field} = $${counter++}`);
+      values.push(field === "preferences" ? JSON.stringify(req.body[field]) : req.body[field]);
+    }
+  });
+
+  setClause.push(`updated_date = CURRENT_TIMESTAMP`);
+  values.push(userId);
+
+  // Construct the final query
+  const query = `
+    UPDATE users 
+    SET ${setClause.join(", ")}
+    WHERE user_id = $${counter}
+    RETURNING user_id, email, first_name, last_name, phone_number, preferences, role, tenant_id, user_name, profile_picture
+  `;
+
+  try {
+    const result = await pool.query(query, values);
+    res.status(200).json({
+      success: true,
+      message: "User successfully updated",
+      data: result.rows[0],
+    });
+  } catch (err) {
+    return next(new ErrorHandler(`Error: Unable to update User: ${userId}. Message: ${err.message}`, 500));
+  }
+});
+
+module.exports = { createUser, completeUserRegistration, getUserById, updateProfilePic, updateUserById };

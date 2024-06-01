@@ -26,6 +26,7 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE,
     preferences JSONB,
     password VARCHAR(255),
+    profile_picture BYTEA,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
