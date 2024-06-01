@@ -7,6 +7,7 @@ const errorMiddleware = require("./middleware/errorMiddleware");
 const auth = require("./routes/auth");
 const tenants = require("./routes/tenants");
 const users = require("./routes/users");
+const guests = require("./routes/guests");
 
 // Middleware
 app.use(cors());
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use("/api/v1", auth);
 app.use("/api/v1", tenants);
 app.use("/api/v1", users);
+app.use("/api/v1", guests);
 
 // Middleware
 app.use(errorMiddleware);
