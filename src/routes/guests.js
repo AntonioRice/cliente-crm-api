@@ -2,8 +2,8 @@ const express = require("express");
 const router = express.Router();
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
 
-const { createGuest } = require("../controllers/guestsController");
+const { createGuest, getGuests } = require("../controllers/guestsController");
 
-router.route("/guests").post(isAuthenticatedUser, createGuest);
+router.route("/guests").get(isAuthenticatedUser, getGuests).post(isAuthenticatedUser, createGuest);
 
 module.exports = router;

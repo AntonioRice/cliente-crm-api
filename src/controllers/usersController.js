@@ -18,7 +18,7 @@ const createUser = catchAsyncErrors(async (req, res, next) => {
   try {
     const newUser = await pool.query(query, values);
 
-    res.status(200).json({
+    res.status(201).json({
       success: true,
       message: `New User, ${newUser.rows[0].email}, for tenant: ${tenant_id}, successfully created`,
       data: newUser.rows,
@@ -141,7 +141,6 @@ const updateUserById = catchAsyncErrors(async (req, res, next) => {
   setClause.push(`updated_date = CURRENT_TIMESTAMP`);
   values.push(userId);
 
-  // Construct the final query
   const query = `
     UPDATE users 
     SET ${setClause.join(", ")}

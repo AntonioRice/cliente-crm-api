@@ -48,7 +48,7 @@ CREATE TABLE guests (
     check_in TIMESTAMP NOT NULL,
     check_out TIMESTAMP NOT NULL,
     license_plate_number VARCHAR(255),
-    payment_method VARCHAR(255) NOT NULL CHECK (payment_method IN ('Cash', 'Credit', 'Transfer')),
+    payment_method VARCHAR(255) NOT NULL CHECK (payment_method IN ('cash', 'credit', 'transfer')),
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -58,12 +58,11 @@ CREATE TABLE reservations (
     reservation_id SERIAL PRIMARY KEY,
     tenant_id INT NOT NULL REFERENCES tenants(tenant_id),
     primary_guest_id INT NOT NULL REFERENCES guests(guest_id),
-    guests INT[] REFERENCES guests(guest_id),
     check_in TIMESTAMP NOT NULL,
     check_out TIMESTAMP NOT NULL,
     rooms INT[],
-    status VARCHAR(50) NOT NULL CHECK (status IN ('Active', 'Completed', 'Canceled')) DEFAULT 'Active',
-    payment_status VARCHAR(50) NOT NULL CHECK (payment_status IN ('Pending', 'Completed', 'Failed')) DEFAULT 'Pending',
+    status VARCHAR(50) NOT NULL CHECK (status IN ('active', 'completed', 'canceled')) DEFAULT 'active',
+    payment_status VARCHAR(50) NOT NULL CHECK (payment_status IN ('pending', 'completed', 'failed')) DEFAULT 'pending',
     total_amount DECIMAL(10, 2) NOT NULL,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -73,9 +72,11 @@ CREATE TABLE reservations (
 CREATE TABLE reservation_guests (
     reservation_id INT NOT NULL,
     guest_id INT NOT NULL,
+    tenant_id INT NOT NULL,
     PRIMARY KEY (reservation_id, guest_id),
     FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id),
-    FOREIGN KEY (guest_id) REFERENCES guests(guest_id)
+    FOREIGN KEY (guest_id) REFERENCES guests(guest_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
 );
 
 

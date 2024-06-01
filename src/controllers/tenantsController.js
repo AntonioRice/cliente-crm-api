@@ -13,7 +13,7 @@ const createTenant = catchAsyncErrors(async (req, res, next) => {
   try {
     const newTenant = await pool.query(query, [tenant_name, membership, status]);
 
-    res.status(200).json({
+    res.status(201).json({
       success: true,
       message: `New Tenant: ${newTenant.rows[0].tenant_id} successfully created`,
       data: newTenant.rows,
