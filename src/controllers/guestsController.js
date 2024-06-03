@@ -1,6 +1,7 @@
 const pool = require("../database/db");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
+const moment = require("moment-timezone");
 
 const createGuest = catchAsyncErrors(async (req, res, next) => {
   const {
@@ -20,6 +21,7 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
     check_out,
     payment_method,
     total_amount,
+    payment_status,
   } = req.body;
 
   const guestQuery = `
@@ -31,8 +33,8 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
 
   const reservationQuery = `
       INSERT INTO reservations 
-      (tenant_id, primary_guest_id, check_in, check_out, room_numbers, payment_method, total_amount) 
-      VALUES($1, $2, $3, $4, $5, $6, $7) 
+      (tenant_id, primary_guest_id, check_in, check_out, room_numbers, payment_method, total_amount, payment_status, guest_status) 
+      VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) 
       RETURNING *`;
 
   const reservationGuestQuery = `
@@ -61,6 +63,11 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
     const newGuest = await pool.query(guestQuery, guestValues);
     const guestId = newGuest.rows[0].guest_id;
 
+    // Calculate guest_status
+    const ecuadorTimeZone = "America/Guayaquil";
+    const checkOutMoment = moment.tz(check_out, ecuadorTimeZone).set({ hour: 15, minute: 0, second: 0 });
+    const guestStatus = moment().isBefore(checkOutMoment) ? "active" : "inactive";
+
     // Create new reservation
     const reservationValues = [
       tenant_id,
@@ -70,6 +77,8 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
       `{${room_number}}`,
       payment_method,
       total_amount,
+      payment_status,
+      guestStatus,
     ];
     const newReservation = await pool.query(reservationQuery, reservationValues);
     const reservationId = newReservation.rows[0].reservation_id;

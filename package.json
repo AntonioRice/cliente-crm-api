@@ -24,6 +24,7 @@
     "express-router": "^0.0.1",
     "fs": "*",
     "jsonwebtoken": "^9.0.2",
+    "moment-timezone": "^0.5.45",
     "multer": "*",
     "pg": "^8.11.5"
   }
