@@ -44,11 +44,7 @@ CREATE TABLE guests (
     email VARCHAR(255),
     phone_number VARCHAR(50),
     emergency_contact JSONB,
-    room_number INT NOT NULL,
-    check_in TIMESTAMP NOT NULL,
-    check_out TIMESTAMP NOT NULL,
     license_plate_number VARCHAR(255),
-    payment_method VARCHAR(255) NOT NULL CHECK (payment_method IN ('cash', 'credit', 'transfer')),
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -60,7 +56,8 @@ CREATE TABLE reservations (
     primary_guest_id INT NOT NULL REFERENCES guests(guest_id),
     check_in TIMESTAMP NOT NULL,
     check_out TIMESTAMP NOT NULL,
-    rooms INT[],
+    room_numbers INT[] NOT NULL,
+    payment_method VARCHAR(255) NOT NULL CHECK (payment_method IN ('cash', 'credit', 'transfer')),
     status VARCHAR(50) NOT NULL CHECK (status IN ('active', 'completed', 'canceled')) DEFAULT 'active',
     payment_status VARCHAR(50) NOT NULL CHECK (payment_status IN ('pending', 'completed', 'failed')) DEFAULT 'pending',
     total_amount DECIMAL(10, 2) NOT NULL,
@@ -88,3 +85,14 @@ CREATE TABLE reservation_guests (
 --         "sms": false
 --     }
 -- }        
+--   "address": {
+--         "country": String
+--         "state": String
+--         "city": String
+--         "postal_code": String
+--     },
+    -- "emergency_contact": {
+    --     "first_name": String
+    --     "last_name": String
+    --     "phone_number": String
+    -- },
