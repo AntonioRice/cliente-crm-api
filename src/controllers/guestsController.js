@@ -98,16 +98,19 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-const getGuests = catchAsyncErrors(async (req, res, next) => {
+const getAllGuests = catchAsyncErrors(async (req, res, next) => {
   const { page = 1, limit = 10 } = req.query;
   const offset = (page - 1) * limit;
 
   try {
     const guestsQuery = `
-      SELECT * FROM guests
-      ORDER BY created_date DESC
+      SELECT g.*, r.*
+      FROM guests g
+      LEFT JOIN reservation_guests rg ON g.guest_id = rg.guest_id
+      LEFT JOIN reservations r ON rg.reservation_id = r.reservation_id
+      ORDER BY g.created_date DESC
       LIMIT $1 OFFSET $2
-      `;
+    `;
     const countQuery = `SELECT COUNT(*) FROM guests`;
 
     const [guestsResult, countResult] = await Promise.all([
@@ -115,9 +118,36 @@ const getGuests = catchAsyncErrors(async (req, res, next) => {
       pool.query(countQuery),
     ]);
 
-    const guests = guestsResult.rows;
+    const guests = guestsResult.rows.reduce((acc, row) => {
+      const guest = acc.find((g) => g.guest_id === row.guest_id);
+      if (guest) {
+        guest.reservations.push({
+          reservation_id: row.reservation_id,
+          primary_guest_id: row.primary_guest_id,
+          check_in: row.check_in,
+          check_out: row.check_out,
+        });
+      } else {
+        acc.push({
+          ...row,
+          reservations: row.reservation_id
+            ? [
+                {
+                  reservation_id: row.reservation_id,
+                  primary_guest_id: row.primary_guest_id,
+                  check_in: row.check_in,
+                  check_out: row.check_out,
+                },
+              ]
+            : [],
+        });
+      }
+      return acc;
+    }, []);
+
     const totalGuests = parseInt(countResult.rows[0].count, 10);
     const totalPages = Math.ceil(totalGuests / limit);
+    console.log(guests);
 
     res.status(200).json({
       success: true,
@@ -130,7 +160,54 @@ const getGuests = catchAsyncErrors(async (req, res, next) => {
       },
     });
   } catch (err) {
-    return next(new ErrorHandler(`Error: Unable to fetch guests. Message: ${err.message}`, 500));
+    console.error("Error retrieving all guests and reservations:", err);
+    res.status(500).json({ err: "Internal Server Error" });
+  }
+});
+
+const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
+  const { page = 1, limit = 10 } = req.query;
+  const offset = (page - 1) * limit;
+
+  try {
+    const currentGuestsQuery = `
+      SELECT g.*, r.*
+      FROM guests g
+      JOIN reservation_guests rg ON g.guest_id = rg.guest_id
+      JOIN reservations r ON rg.reservation_id = r.reservation_id
+      WHERE r.check_out > CURRENT_TIMESTAMP
+      LIMIT $1 OFFSET $2
+    `;
+    const countQuery = `
+      SELECT COUNT(*)
+      FROM guests g
+      JOIN reservation_guests rg ON g.guest_id = rg.guest_id
+      JOIN reservations r ON rg.reservation_id = r.reservation_id
+      WHERE r.check_out > CURRENT_TIMESTAMP
+    `;
+
+    const [currentGuestRes, countRes] = await Promise.all([
+      pool.query(currentGuestsQuery, [limit, offset]),
+      pool.query(countQuery),
+    ]);
+
+    const currentGuests = currentGuestRes.rows;
+    const totalCurrentGuests = parseInt(countRes.rows[0].count, 10);
+    const totalPages = Math.ceil(totalCurrentGuests / limit);
+
+    res.status(200).json({
+      success: true,
+      data: currentGuests,
+      meta: {
+        totalCurrentGuests,
+        totalPages,
+        currentPage: parseInt(page, 10),
+        pageSize: parseInt(limit, 10),
+      },
+    });
+  } catch (error) {
+    console.error("Error retrieving current guests and reservations:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
@@ -159,4 +236,4 @@ const searchGuest = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-module.exports = { createGuest, getGuests, searchGuest };
+module.exports = { createGuest, getAllGuests, getCurrentGuests, searchGuest };
