@@ -15,19 +15,19 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
     email,
     phone_number,
     emergency_contact,
-    license_plate_number,
-    room_number,
+    room_numbers,
     check_in,
     check_out,
     payment_method,
     total_amount,
     payment_status,
+    vehicle,
   } = req.body;
 
   const guestQuery = `
       INSERT INTO guests 
       (tenant_id, first_name, last_name, date_of_birth, nationality, address,
-      identification_number, email, phone_number, emergency_contact, license_plate_number) 
+      identification_number, email, phone_number, emergency_contact, vehicle) 
       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
       RETURNING *`;
 
@@ -44,6 +44,7 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
 
   const addressJson = JSON.stringify(address);
   const emergencyContactJson = JSON.stringify(emergency_contact);
+  const vehicleJson = JSON.stringify(vehicle);
   const guestValues = [
     tenant_id,
     first_name,
@@ -55,7 +56,7 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
     email,
     phone_number,
     emergencyContactJson,
-    license_plate_number,
+    vehicleJson,
   ];
 
   try {
@@ -74,7 +75,7 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
       guestId,
       check_in,
       check_out,
-      `{${room_number}}`,
+      `{${room_numbers}}`,
       payment_method,
       total_amount,
       payment_status,
@@ -135,14 +136,13 @@ const getGuests = catchAsyncErrors(async (req, res, next) => {
 
 const searchGuest = catchAsyncErrors(async (req, res, next) => {
   const { searchQuery } = req.query;
-  console.log(searchQuery);
   if (!searchQuery) {
     return next(new ErrorHandler("Search query is required", 400));
   }
   const query = `
     SELECT * from guests
     WHERE first_name ILIKE $1 OR last_name ILIKE $1
-    ORDER BY created_date DESC
+    ORDER BY first_name DESC
     LIMIT 10 OFFSET 0
   `;
 
