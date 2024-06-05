@@ -1,23 +1,26 @@
 require("dotenv").config();
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const app = express();
 const cors = require("cors");
 const pool = require("./database/db");
 const errorMiddleware = require("./middleware/errorMiddleware");
-const auth = require("./routes/auth");
-const tenants = require("./routes/tenants");
-const users = require("./routes/users");
-const guests = require("./routes/guests");
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-//Register Routes
-app.use("/api/v1", auth);
-app.use("/api/v1", tenants);
-app.use("/api/v1", users);
-app.use("/api/v1", guests);
+// Register Routes
+((app, basePath) => {
+  const routesPath = path.join(__dirname, basePath);
+  fs.readdirSync(routesPath).forEach((file) => {
+    if (file.endsWith(".js")) {
+      const route = require(path.join(routesPath, file));
+      app.use("/api/v1", route);
+    }
+  });
+})(app, "./routes");
 
 // Middleware
 app.use(errorMiddleware);
