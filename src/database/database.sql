@@ -44,7 +44,7 @@ CREATE TABLE guests (
     email VARCHAR(255),
     phone_number VARCHAR(50),
     emergency_contact JSONB,
-    license_plate_number VARCHAR(255),
+    vehicle JSONB,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -58,7 +58,7 @@ CREATE TABLE reservations (
     check_out TIMESTAMP NOT NULL,
     room_numbers INT[] NOT NULL,
     payment_method VARCHAR(255) NOT NULL CHECK (payment_method IN ('cash', 'credit', 'transfer')),
-    status VARCHAR(50) NOT NULL CHECK (status IN ('active', 'completed', 'canceled')) DEFAULT 'active',
+    guest_status VARCHAR(50) NOT NULL CHECK (guest_status IN ('active', 'inactive')) DEFAULT 'active',
     payment_status VARCHAR(50) NOT NULL CHECK (payment_status IN ('pending', 'completed', 'failed')) DEFAULT 'pending',
     total_amount DECIMAL(10, 2) NOT NULL,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -95,4 +95,9 @@ CREATE TABLE reservation_guests (
     --     "first_name": String
     --     "last_name": String
     --     "phone_number": String
+    -- },
+     -- "vehicle": {
+    --     "make": String
+    --     "model": String
+    --     "plate_number": String
     -- },

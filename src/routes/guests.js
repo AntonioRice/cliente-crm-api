@@ -6,4 +6,5 @@ const { createGuest, getGuests, searchGuest } = require("../controllers/guestsCo
 
 router.route("/guests").get(isAuthenticatedUser, getGuests).post(isAuthenticatedUser, createGuest);
 router.route("/guests/search").get(isAuthenticatedUser, searchGuest);
+
 module.exports = router;
