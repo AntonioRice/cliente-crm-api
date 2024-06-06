@@ -10,12 +10,14 @@ const getReservations = catchAsyncErrors(async (req, res, next) => {
     const reservationsQuery = `
         SELECT * FROM reservations
         WHERE tenant_id = $1
+        LIMIT $2 OFFSET $3
         `;
-    const countQuery = `SELECT COUNT(*) FROM reservations`;
+    const countQuery = `SELECT COUNT(*) FROM reservations
+    WHERE tenant_id = $1`;
 
     const [reservationsResult, countResult] = await Promise.all([
-      pool.query(reservationsQuery, [limit, offset]),
-      pool.query(countQuery),
+      pool.query(reservationsQuery, [req.user.tenant_id, limit, offset]),
+      pool.query(countQuery, [req.user.tenant_id]),
     ]);
 
     const reservations = reservationsResult.rows;
@@ -33,7 +35,7 @@ const getReservations = catchAsyncErrors(async (req, res, next) => {
       },
     });
   } catch (err) {
-    return next(new ErrorHandler(`Error: Unable to fetch reservations. Message: ${err.message}`, 500));
+    return next(new ErrorHandler(`Error: Unable to fetch reservations. Message: ${err}`, 500));
   }
 });
 
@@ -60,4 +62,53 @@ const getReservationsById = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-module.exports = { getReservations, getReservationsById };
+const getReservationsAnalytics = catchAsyncErrors(async (req, res, next) => {
+  const { sortBy = "check_in", order = "ASC" } = req.query;
+
+  try {
+    const reservationsQuery = `
+      SELECT *, 
+      DATE_TRUNC('week', check_in) AS week_start 
+      FROM reservations
+      WHERE tenant_id = $1
+      ORDER BY ${sortBy} ${order}
+    `;
+    const countQuery = `SELECT COUNT(*) FROM reservations WHERE tenant_id = $1`;
+
+    const [reservationsResult, countResult] = await Promise.all([
+      pool.query(reservationsQuery, [req.user.tenant_id]),
+      pool.query(countQuery, [req.user.tenant_id]),
+    ]);
+
+    const reservations = reservationsResult.rows;
+    const totalReservations = parseInt(countResult.rows[0].count, 10);
+
+    console.log(reservationsResult);
+    console.log(countResult);
+
+    // Group reservations by week
+    const reservationsByWeek = reservations.reduce((acc, reservation) => {
+      const weekStart = reservation.week_start.toISOString().split("T")[0];
+      if (!acc[weekStart]) {
+        acc[weekStart] = [];
+      }
+      acc[weekStart].push(reservation);
+      return acc;
+    }, {});
+
+    res.status(200).json({
+      success: true,
+      data: {
+        reservations,
+        reservationsByWeek,
+      },
+      meta: {
+        totalReservations,
+      },
+    });
+  } catch (err) {
+    return next(new ErrorHandler(`Error: Unable to fetch reservations analytics. Message: ${err.message}`, 500));
+  }
+});
+
+module.exports = { getReservations, getReservationsById, getReservationsAnalytics };
