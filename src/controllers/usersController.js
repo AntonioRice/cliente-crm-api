@@ -117,6 +117,7 @@ const updateProfilePic = catchAsyncErrors(upload.single("profile_picture"), asyn
 
 const updateUserById = catchAsyncErrors(async (req, res, next) => {
   const { id: userId } = req.params;
+  console.log(req.body);
   const allowedFields = [
     "tenant_id",
     "user_name",
@@ -132,6 +133,7 @@ const updateUserById = catchAsyncErrors(async (req, res, next) => {
   let counter = 1;
 
   allowedFields.forEach((field) => {
+    console.log(field);
     if (req.body[field] !== undefined) {
       setClause.push(`${field} = $${counter++}`);
       values.push(field === "preferences" ? JSON.stringify(req.body[field]) : req.body[field]);

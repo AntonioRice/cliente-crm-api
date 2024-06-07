@@ -99,8 +99,10 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
 });
 
 const getAllGuests = catchAsyncErrors(async (req, res, next) => {
-  const { page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 10, sortKey = "created_date", sortDirection = "DESC" } = req.query;
   const offset = (page - 1) * limit;
+  const sortColumn = sortKey;
+  const sortOrder = sortDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
 
   try {
     const guestsQuery = `
@@ -113,7 +115,7 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
       FROM guests g
       LEFT JOIN reservation_guests rg ON g.guest_id = rg.guest_id
       LEFT JOIN reservations r ON rg.reservation_id = r.reservation_id
-      ORDER BY g.created_date DESC
+      ORDER BY ${sortColumn} ${sortOrder}
       LIMIT $1 OFFSET $2
     `;
     const countQuery = `SELECT COUNT(*) FROM guests`;
@@ -154,6 +156,7 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
           created_date: row.created_date,
           updated_date: row.updated_date,
           reservations: row.reservation_id ? [reservation] : [],
+          guest_status: row.guest_status,
         });
       }
       return acc;
@@ -179,8 +182,12 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
 });
 
 const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
-  const { page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 10, sortKey = "created_date", sortDirection = "DESC" } = req.query;
   const offset = (page - 1) * limit;
+  const sortColumn = sortKey;
+  const sortOrder = sortDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+  console.log(req.query);
 
   try {
     const currentGuestsQuery = `
@@ -189,6 +196,7 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
       JOIN reservation_guests rg ON g.guest_id = rg.guest_id
       JOIN reservations r ON rg.reservation_id = r.reservation_id
       WHERE r.check_out > CURRENT_TIMESTAMP
+      ORDER BY g.${sortColumn} ${sortOrder}
       LIMIT $1 OFFSET $2
     `;
     const countQuery = `

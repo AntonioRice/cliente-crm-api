@@ -83,9 +83,6 @@ const getReservationsAnalytics = catchAsyncErrors(async (req, res, next) => {
     const reservations = reservationsResult.rows;
     const totalReservations = parseInt(countResult.rows[0].count, 10);
 
-    console.log(reservationsResult);
-    console.log(countResult);
-
     // Group reservations by week
     const reservationsByWeek = reservations.reduce((acc, reservation) => {
       const weekStart = reservation.week_start.toISOString().split("T")[0];
