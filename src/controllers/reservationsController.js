@@ -41,18 +41,19 @@ const getReservations = catchAsyncErrors(async (req, res, next) => {
 
 const getReservationsById = catchAsyncErrors(async (req, res, next) => {
   const guest_id = req.params.id;
+  const tenant_id = req.user.tenant_id;
 
   try {
-    const guestQuery = "SELECT * FROM guests WHERE guest_id = $1";
-    const reservationsQuery = "SELECT * FROM reservations WHERE guest_id = $1 AND check_out > CURRENT_TIMESTAMP";
+    const guestQuery = "SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2";
+    const reservationsQuery =
+      "SELECT * FROM reservations WHERE guest_id = $1 AND tenant_id = $2 AND check_out > CURRENT_TIMESTAMP";
 
-    const guestResponse = await pool.query(guestQuery, [guest_id]);
-    const reservationsResponse = await pool.query(reservationsQuery, [guest_id]);
+    const guestResponse = await pool.query(guestQuery, [guest_id, tenant_id]);
+    const reservationsResponse = await pool.query(reservationsQuery, [guest_id, tenant_id]);
 
     const guest = guestResponse.rows[0];
     const reservations = reservationsResponse.rows;
 
-    res.json({ guest, reservations });
     res.status(200).json({
       success: true,
       data: { guest, reservations },
