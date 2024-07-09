@@ -7,11 +7,9 @@ const cors = require("cors");
 const pool = require("./database/db");
 const errorMiddleware = require("./middleware/errorMiddleware");
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Register Routes
 ((app, basePath) => {
   const routesPath = path.join(__dirname, basePath);
   fs.readdirSync(routesPath).forEach((file) => {
@@ -22,10 +20,8 @@ app.use(express.json());
   });
 })(app, "./routes");
 
-// Middleware
 app.use(errorMiddleware);
 
-// Connect to the database
 pool.connect((err, client, release) => {
   if (err) {
     console.error("Error connecting to Database", err.stack);
@@ -41,7 +37,6 @@ app.listen(PORT, () => {
   console.log(`Server stated on port ${PORT}`);
 });
 
-// Handling Unhandled Promise Rejections
 process.on("unhandledRejection", (err) => {
   console.log(`Error: ${err.message}`);
   console.log("Shutting down the server due to unhandled promise rejection");
