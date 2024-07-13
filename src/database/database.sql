@@ -28,7 +28,8 @@ CREATE TABLE users (
     password VARCHAR(255),
     profile_picture BYTEA,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(10) NOT NULL DEFAULT 'Inactive' CHECK (status IN ('Active', 'Inactive'))
 );
 
 -- Create Guests Table
@@ -53,6 +54,7 @@ CREATE TABLE guests (
 CREATE TABLE reservations (
     reservation_id SERIAL PRIMARY KEY,
     tenant_id INT NOT NULL REFERENCES tenants(tenant_id),
+    primary_guest JSONB NOT NULL,
     primary_guest_id INT NOT NULL REFERENCES guests(guest_id),
     check_in TIMESTAMP NOT NULL,
     check_out TIMESTAMP NOT NULL,
@@ -101,3 +103,7 @@ CREATE TABLE reservation_guests (
     --     "model": String
     --     "plate_number": String
     -- },
+    -- "primary_guest":{
+    --     "first_name": String,
+    --     "last_name": String
+    -- }
