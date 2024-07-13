@@ -6,14 +6,14 @@ const {
   createGuest,
   getGuestById,
   getAllGuests,
-  searchGuest,
   getCurrentGuests,
+  searchGuests,
   deleteGuest,
 } = require("../controllers/guestsController");
 
 router.route("/guests").get(isAuthenticatedUser, getAllGuests).post(isAuthenticatedUser, createGuest);
-router.route("/guests/:id").get(isAuthenticatedUser, getGuestById).delete(isAuthenticatedUser, deleteGuest);
+router.route("/guests/search").get(isAuthenticatedUser, searchGuests);
 router.route("/guests/current").get(isAuthenticatedUser, getCurrentGuests);
-router.route("/guests/search").get(isAuthenticatedUser, searchGuest);
+router.route("/guests/:id").get(isAuthenticatedUser, getGuestById).delete(isAuthenticatedUser, deleteGuest);
 
 module.exports = router;

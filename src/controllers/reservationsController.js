@@ -4,8 +4,16 @@ const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const moment = require("moment-timezone");
 
 const createReservation = catchAsyncErrors(async (req, res, next) => {
-  const { primary_guest_id, room_numbers, check_in, check_out, payment_method, total_amount, payment_status, guests } =
-    req.body;
+  const {
+    primary_guest_id,
+    room_numbers,
+    check_in,
+    check_out,
+    payment_method,
+    total_amount,
+    payment_status,
+    additional_guests,
+  } = req.body;
 
   const tenant_id = req.body.tenant_id || req.user.tenant_id;
 
@@ -53,13 +61,14 @@ const createReservation = catchAsyncErrors(async (req, res, next) => {
       tenant_id,
     ]);
 
-    for (let guest of guests) {
+    for (let guest of additional_guests) {
       const { guest_id } = guest;
 
       const existingGuest = await pool.query("SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2", [
         guest_id,
         tenant_id,
       ]);
+
       if (existingGuest.rows.length > 0) {
         await pool.query("INSERT INTO reservation_guests (reservation_id, guest_id, tenant_id) VALUES ($1, $2, $3)", [
           reservationId,

@@ -100,20 +100,15 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
 const getGuestById = catchAsyncErrors(async (req, res, next) => {
   const guest_id = req.params.id;
   const tenant_id = req.user.tenant_id;
-
   try {
     const guestQuery = "SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2";
     // const reservationsQuery =
     //   "SELECT * FROM reservations WHERE guest_id = $1 AND tenant_id = $2 AND check_out > CURRENT_TIMESTAMP";
-
     const guestResponse = await pool.query(guestQuery, [guest_id, tenant_id]);
     // const reservationsResponse = await pool.query(reservationsQuery, [guest_id, tenant_id]);
-
     const guest = guestResponse.rows[0];
     // const reservations = reservationsResponse.rows;
-
     console.log(guest);
-
     res.status(200).json({
       success: true,
       data: {
@@ -123,7 +118,7 @@ const getGuestById = catchAsyncErrors(async (req, res, next) => {
     });
   } catch (error) {
     console.log(error);
-    return next(new ErrorHandler(`Error: Unable to fetch guest reservations. Message: ${err.message}`, 500));
+    return next(new ErrorHandler(`Error: Unable to fetch guest reservations. Message: ${error.message}`, 500));
   }
 });
 
@@ -263,27 +258,31 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-const searchGuest = catchAsyncErrors(async (req, res, next) => {
-  const { searchQuery } = req.query;
+const searchGuests = catchAsyncErrors(async (req, res, next) => {
+  const { searchQuery, limit = 10, offset = 0 } = req.query;
   if (!searchQuery) {
     return next(new ErrorHandler("Search query is required", 400));
   }
+
+  const tenant_id = req.user.tenant_id;
+
   const query = `
     SELECT * from guests
-    WHERE first_name ILIKE $1 OR last_name ILIKE $1
+    WHERE first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1
+    AND tenant_id = $2
     ORDER BY first_name DESC
-    LIMIT 10 OFFSET 0
+    LIMIT $3 OFFSET $4
   `;
 
   try {
-    const values = [`%${searchQuery}%`];
+    const values = [`%${searchQuery}%`, tenant_id, limit, offset];
     const results = await pool.query(query, values);
     res.status(200).json({
       success: true,
       data: results.rows,
     });
   } catch (error) {
-    console.log(err);
+    console.log(error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
@@ -291,9 +290,6 @@ const searchGuest = catchAsyncErrors(async (req, res, next) => {
 const deleteGuest = catchAsyncErrors(async (req, res, next) => {
   const guest_id = req.params.id;
   const tenant_id = req.user.tenant_id;
-
-  console.log("guest_id", guest_id);
-  console.log("tenant_id", tenant_id);
 
   const findGuestQuery = `SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2`;
   const deleteGuestQuery = `DELETE FROM guests WHERE guest_id = $1 AND tenant_id = $2`;
@@ -331,4 +327,4 @@ const deleteGuest = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-module.exports = { createGuest, getGuestById, getAllGuests, getCurrentGuests, searchGuest, deleteGuest };
+module.exports = { createGuest, getGuestById, getAllGuests, getCurrentGuests, searchGuests, deleteGuest };
