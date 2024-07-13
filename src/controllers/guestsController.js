@@ -1,7 +1,6 @@
 const pool = require("../database/db");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
-const moment = require("moment-timezone");
 
 const createGuest = catchAsyncErrors(async (req, res, next) => {
   const {
@@ -14,165 +13,87 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
     email,
     phone_number,
     emergency_contact,
-    room_numbers,
-    check_in,
-    check_out,
-    payment_method,
-    total_amount,
-    payment_status,
     vehicle,
-    guests,
   } = req.body;
 
   const tenant_id = req.body.tenant_id || req.user.tenant_id;
 
-  const findGuestQuery = `SELECT * FROM guests WHERE email = $1 AND tenant_id = $2`;
-  const guestInsertQuery = `
-      INSERT INTO guests 
-      (tenant_id, first_name, last_name, date_of_birth, nationality, address,
-      identification_number, email, phone_number, emergency_contact, vehicle) 
-      VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
-      RETURNING *`;
-  const guestUpdateQuery = `
-      UPDATE guests 
-      SET first_name = $1, last_name = $2, date_of_birth = $3, nationality = $4, 
-          address = $5, identification_number = $6, phone_number = $7, 
-          emergency_contact = $8, vehicle = $9, updated_date = NOW() 
-      WHERE email = $10 AND tenant_id = $11 
-      RETURNING *`;
-  const reservationQuery = `
-      INSERT INTO reservations 
-      (tenant_id, primary_guest_id, check_in, check_out, room_numbers, payment_method, total_amount, payment_status, guest_status) 
-      VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-      RETURNING *`;
-  const reservationGuestQuery = `
-      INSERT INTO reservation_guests 
-      (reservation_id, guest_id, tenant_id) 
-      VALUES($1, $2, $3)`;
-
-  const addressJson = JSON.stringify(address);
-  const emergencyContactJson = JSON.stringify(emergency_contact);
-  const vehicleJson = JSON.stringify(vehicle);
+  const guestData = {
+    tenant_id,
+    first_name,
+    last_name,
+    date_of_birth,
+    nationality,
+    address: JSON.stringify(address),
+    identification_number,
+    email,
+    phone_number,
+    emergency_contact: JSON.stringify(emergency_contact),
+    vehicle: JSON.stringify(vehicle),
+  };
 
   try {
-    // Check if primary guest exists
-    const existingGuest = await pool.query(findGuestQuery, [email, tenant_id]);
+    const existingGuest = await pool.query("SELECT * FROM guests WHERE email = $1 AND tenant_id = $2", [
+      email,
+      tenant_id,
+    ]);
 
-    let guestId;
-    let guestData;
+    let guest;
     if (existingGuest.rows.length > 0) {
-      const updatedGuest = await pool.query(guestUpdateQuery, [
-        first_name,
-        last_name,
-        date_of_birth,
-        nationality,
-        addressJson,
-        identification_number,
-        phone_number,
-        emergencyContactJson,
-        vehicleJson,
-        email,
-        tenant_id,
-      ]);
-      guestId = updatedGuest.rows[0].guest_id;
-      guestData = updatedGuest.rows[0];
+      guest = await pool.query(
+        `
+        UPDATE guests 
+        SET first_name = $1, last_name = $2, date_of_birth = $3, nationality = $4, 
+            address = $5, identification_number = $6, phone_number = $7, 
+            emergency_contact = $8, vehicle = $9, updated_date = NOW() 
+        WHERE email = $10 AND tenant_id = $11 
+        RETURNING *`,
+        [
+          first_name,
+          last_name,
+          date_of_birth,
+          nationality,
+          guestData.address,
+          identification_number,
+          phone_number,
+          guestData.emergency_contact,
+          guestData.vehicle,
+          email,
+          tenant_id,
+        ]
+      );
     } else {
-      const newGuest = await pool.query(guestInsertQuery, [
-        tenant_id,
-        first_name,
-        last_name,
-        date_of_birth,
-        nationality,
-        addressJson,
-        identification_number,
-        email,
-        phone_number,
-        emergencyContactJson,
-        vehicleJson,
-      ]);
-      guestId = newGuest.rows[0].guest_id;
-      guestData = newGuest.rows[0];
+      guest = await pool.query(
+        `
+        INSERT INTO guests 
+        (tenant_id, first_name, last_name, date_of_birth, nationality, address, 
+        identification_number, email, phone_number, emergency_contact, vehicle) 
+        VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+        RETURNING *`,
+        [
+          tenant_id,
+          first_name,
+          last_name,
+          date_of_birth,
+          nationality,
+          guestData.address,
+          identification_number,
+          email,
+          phone_number,
+          guestData.emergency_contact,
+          guestData.vehicle,
+        ]
+      );
     }
 
-    // Calculate guest_status
-    const ecuadorTimeZone = "America/Guayaquil";
-    const checkOutMoment = moment.tz(check_out, ecuadorTimeZone).set({ hour: 15, minute: 0, second: 0 });
-    const guestStatus = moment().isBefore(checkOutMoment) ? "active" : "inactive";
-
-    // Check if a new reservation is needed
-    const existingReservation = await pool.query(
-      "SELECT * FROM reservations WHERE primary_guest_id = $1 AND tenant_id = $2",
-      [guestId, tenant_id]
-    );
-
-    if (
-      existingReservation.rows.length === 0 ||
-      JSON.stringify(existingReservation.rows[0].room_numbers) !== JSON.stringify(room_numbers) ||
-      existingReservation.rows[0].check_in !== check_in ||
-      existingReservation.rows[0].check_out !== check_out
-    ) {
-      // Create new reservation
-      const reservationValues = [
-        tenant_id,
-        guestId,
-        check_in,
-        check_out,
-        `{${room_numbers}}`,
-        payment_method,
-        total_amount,
-        payment_status,
-        guestStatus,
-      ];
-      const newReservation = await pool.query(reservationQuery, reservationValues);
-      const reservationId = newReservation.rows[0].reservation_id;
-
-      // Link primary guest to reservation
-      await pool.query(reservationGuestQuery, [reservationId, guestId, tenant_id]);
-
-      // Link additional guests to reservation
-      for (let guest of guests) {
-        const { first_name, last_name, date_of_birth, email, identification_number } = guest;
-
-        let additionalGuestId;
-        const existingAdditionalGuest = await pool.query(findGuestQuery, [email, tenant_id]);
-        if (existingAdditionalGuest.rows.length > 0) {
-          additionalGuestId = existingAdditionalGuest.rows[0].guest_id;
-        } else {
-          const newAdditionalGuest = await pool.query(guestInsertQuery, [
-            tenant_id,
-            first_name,
-            last_name,
-            date_of_birth,
-            nationality,
-            addressJson,
-            identification_number,
-            email,
-            phone_number,
-            emergencyContactJson,
-            vehicleJson,
-          ]);
-          additionalGuestId = newAdditionalGuest.rows[0].guest_id;
-        }
-
-        await pool.query(reservationGuestQuery, [reservationId, additionalGuestId, tenant_id]);
-      }
-
-      res.status(201).json({
-        success: true,
-        message: `Guest: ${guestId}, for tenant: ${tenant_id}, successfully created/updated and linked to reservation: ${reservationId}`,
-        data: guestData,
-      });
-      console.log(201, "created");
-    } else {
-      res.status(200).json({
-        success: true,
-        message: `Guest: ${guestId}, for tenant: ${tenant_id}, successfully updated`,
-        data: guestData,
-      });
-    }
+    res.status(201).json({
+      success: true,
+      message: "Guest successfully created/updated",
+      data: guest.rows[0],
+    });
   } catch (err) {
     console.log(err);
-    return next(new ErrorHandler(`Error: Unable to create/update guest and reservation. Message: ${err.message}`, 500));
+    next(new ErrorHandler(`Error: Unable to create/update guest. Message: ${err.message}`, 500));
   }
 });
 

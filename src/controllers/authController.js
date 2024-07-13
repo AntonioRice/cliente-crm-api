@@ -11,7 +11,6 @@ const login = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Please enter user_name and password", 400));
   }
 
-  // Query the user by user_name
   const query = "SELECT * FROM users WHERE user_name = $1";
   const result = await pool.query(query, [username]);
 
@@ -20,15 +19,12 @@ const login = catchAsyncErrors(async (req, res, next) => {
   }
 
   const user = result.rows[0];
-
-  // Verify Password
   const passwordVerified = await bcrypt.compare(password, user.password);
 
   if (!passwordVerified) {
     return next(new ErrorHandler("Invalid user_name or password.", 401));
   }
 
-  // Send token
   sendToken(user, 200, res);
 });
 
