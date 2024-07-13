@@ -30,22 +30,37 @@ const createUser = catchAsyncErrors(async (req, res, next) => {
 });
 
 const completeUserRegistration = catchAsyncErrors(async (req, res, next) => {
-  const { user_id, phone_number, preferences, password } = req.body;
+  const { user_id, phone_number, preferences, password, first_name, last_name, email } = req.body;
 
-  if (!user_id || !phone_number || !preferences || !password) {
+  if (!user_id || !phone_number || !preferences || !password || !first_name || !last_name || !email) {
     return res.status(400).json({ message: "All fields are required" });
+  }
+
+  if (isNaN(parseInt(user_id, 10))) {
+    return res.status(400).json({ message: "Invalid user_id" });
   }
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
+    const status = "Active";
     const query = `
-    UPDATE users
-    SET phone_number = $1, preferences = $2, password = $3, updated_date = CURRENT_TIMESTAMP
-    WHERE user_id = $4
-    RETURNING *;
-  `;
+      UPDATE users
+      SET first_name = $1, last_name = $2, email = $3, phone_number = $4, preferences = $5, password = $6, status = $7, updated_date = CURRENT_TIMESTAMP
+      WHERE user_id = $8
+      RETURNING *;
+    `;
 
-    const values = [phone_number, JSON.stringify(preferences), hashedPassword, user_id];
+    const values = [
+      first_name,
+      last_name,
+      email,
+      phone_number,
+      JSON.stringify(preferences),
+      hashedPassword,
+      status,
+      parseInt(user_id, 10),
+    ];
+
     const result = await pool.query(query, values);
 
     if (result.rowCount === 0) {
@@ -59,14 +74,14 @@ const completeUserRegistration = catchAsyncErrors(async (req, res, next) => {
     });
   } catch (error) {
     console.log(error);
-    return next(new ErrorHandler(`Error: Unable to complete registration. Message: ${err.message}`, 500));
+    return next(new ErrorHandler(`Error: Unable to complete registration. Message: ${error.message}`, 500));
   }
 });
 
 const getUserById = catchAsyncErrors(async (req, res, next) => {
   const userId = req.params.id;
   const query = `
-  SELECT user_id, email, first_name, last_name, phone_number, preferences, role, tenant_id, user_name, profile_picture FROM users
+  SELECT user_id, email, first_name, last_name, phone_number, preferences, role, tenant_id, user_name, status, profile_picture FROM users
   WHERE user_id = $1`;
 
   try {
