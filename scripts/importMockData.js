@@ -44,7 +44,6 @@ const createReservation = async (token, reservation) => {
 const main = async () => {
   try {
     const token = await login();
-    console.log(token);
     for (const guest of mockData) {
       const guestId = await createGuest(token, guest);
 
