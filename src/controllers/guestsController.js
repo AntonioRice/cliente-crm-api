@@ -131,15 +131,7 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
 
   try {
     const guestsQuery = `
-      SELECT g.guest_id, g.tenant_id, g.first_name, g.last_name, g.date_of_birth, 
-             g.nationality, g.address, g.identification_number, g.email, 
-             g.phone_number, g.emergency_contact, g.vehicle, g.created_date, 
-             g.updated_date,
-             r.reservation_id, r.primary_guest_id, r.check_in, r.check_out, 
-             r.room_numbers, r.total_amount, r.guest_status
-      FROM guests g
-      LEFT JOIN reservation_guests rg ON g.guest_id = rg.guest_id
-      LEFT JOIN reservations r ON rg.reservation_id = r.reservation_id
+      SELECT * FROM guests g
       ORDER BY ${sortColumn} ${sortOrder}
       LIMIT $1 OFFSET $2
     `;
@@ -150,48 +142,12 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
       pool.query(countQuery),
     ]);
 
-    const guests = guestsResult.rows.reduce((acc, row) => {
-      const guest = acc.find((g) => g.guest_id === row.guest_id);
-      const reservation = {
-        reservation_id: row.reservation_id,
-        primary_guest_id: row.primary_guest_id,
-        check_in: row.check_in,
-        check_out: row.check_out,
-        room_numbers: row.room_numbers,
-        total_amount: row.total_amount,
-        guest_status: row.guest_status,
-      };
-
-      if (guest) {
-        guest.reservations.push(reservation);
-      } else {
-        acc.push({
-          guest_id: row.guest_id,
-          tenant_id: row.tenant_id,
-          first_name: row.first_name,
-          last_name: row.last_name,
-          date_of_birth: row.date_of_birth,
-          nationality: row.nationality,
-          address: row.address,
-          identification_number: row.identification_number,
-          email: row.email,
-          phone_number: row.phone_number,
-          emergency_contact: row.emergency_contact,
-          vehicle: row.vehicle,
-          created_date: row.created_date,
-          updated_date: row.updated_date,
-          reservations: row.reservation_id ? [reservation] : [],
-        });
-      }
-      return acc;
-    }, []);
-
     const totalGuests = parseInt(countResult.rows[0].count, 10);
     const totalPages = Math.ceil(totalGuests / limit);
 
     res.status(200).json({
       success: true,
-      data: guests,
+      data: guestsResult.rows,
       meta: {
         totalGuests,
         totalPages,
