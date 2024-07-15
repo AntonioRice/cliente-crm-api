@@ -100,25 +100,26 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
 const getGuestById = catchAsyncErrors(async (req, res, next) => {
   const guest_id = req.params.id;
   const tenant_id = req.user.tenant_id;
+
   try {
     const guestQuery = "SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2";
-    // const reservationsQuery =
-    //   "SELECT * FROM reservations WHERE guest_id = $1 AND tenant_id = $2 AND check_out > CURRENT_TIMESTAMP";
     const guestResponse = await pool.query(guestQuery, [guest_id, tenant_id]);
-    // const reservationsResponse = await pool.query(reservationsQuery, [guest_id, tenant_id]);
     const guest = guestResponse.rows[0];
-    // const reservations = reservationsResponse.rows;
-    console.log(guest);
+
+    if (!guest) {
+      return res.status(404).json({
+        success: false,
+        message: "Guest not found",
+      });
+    }
+
     res.status(200).json({
       success: true,
-      data: {
-        guest,
-        //  reservations
-      },
+      data: guest,
     });
   } catch (error) {
     console.log(error);
-    return next(new ErrorHandler(`Error: Unable to fetch guest reservations. Message: ${error.message}`, 500));
+    return next(new ErrorHandler(`Error: Unable to fetch guest. Message: ${error.message}`, 500));
   }
 });
 
@@ -296,23 +297,18 @@ const deleteGuest = catchAsyncErrors(async (req, res, next) => {
   const deleteReservationGuestQuery = `DELETE FROM reservation_guests WHERE guest_id = $1 AND tenant_id = $2`;
 
   try {
-    // Check if the guest exists
     const existingGuest = await pool.query(findGuestQuery, [guest_id, tenant_id]);
 
     if (existingGuest.rows.length === 0) {
       return next(new ErrorHandler("Guest not found", 404));
     }
 
-    // Begin transaction
     await pool.query("BEGIN");
 
-    // Delete from reservation_guests table first to maintain integrity
     await pool.query(deleteReservationGuestQuery, [guest_id, tenant_id]);
 
-    // Delete from guests table
     await pool.query(deleteGuestQuery, [guest_id, tenant_id]);
 
-    // Commit transaction
     await pool.query("COMMIT");
 
     res.status(200).json({
@@ -320,7 +316,6 @@ const deleteGuest = catchAsyncErrors(async (req, res, next) => {
       message: `Guest with ID: ${guest_id} successfully deleted and reservation retained`,
     });
   } catch (err) {
-    // Rollback transaction in case of error
     await pool.query("ROLLBACK");
     console.log(err);
     return next(new ErrorHandler(`Error: Unable to delete guest. Message: ${err.message}`, 500));
