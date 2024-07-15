@@ -61,22 +61,24 @@ const createReservation = catchAsyncErrors(async (req, res, next) => {
       tenant_id,
     ]);
 
-    for (let guest of additional_guests) {
-      const { guest_id } = guest;
+    if (additional_guests && additional_guests.length) {
+      for (let guest of additional_guests) {
+        const { guest_id } = guest;
 
-      const existingGuest = await pool.query("SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2", [
-        guest_id,
-        tenant_id,
-      ]);
-
-      if (existingGuest.rows.length > 0) {
-        await pool.query("INSERT INTO reservation_guests (reservation_id, guest_id, tenant_id) VALUES ($1, $2, $3)", [
-          reservationId,
+        const existingGuest = await pool.query("SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2", [
           guest_id,
           tenant_id,
         ]);
-      } else {
-        return res.status(404).json({ message: `Guest with ID ${guest_id} not found` });
+
+        if (existingGuest.rows.length > 0) {
+          await pool.query("INSERT INTO reservation_guests (reservation_id, guest_id, tenant_id) VALUES ($1, $2, $3)", [
+            reservationId,
+            guest_id,
+            tenant_id,
+          ]);
+        } else {
+          return res.status(404).json({ message: `Guest with ID ${guest_id} not found` });
+        }
       }
     }
 
@@ -128,27 +130,42 @@ const getReservations = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-const getReservationsById = catchAsyncErrors(async (req, res, next) => {
-  const guest_id = req.params.id;
+const getReservationById = catchAsyncErrors(async (req, res, next) => {
+  const reservation_id = req.params.id;
   const tenant_id = req.user.tenant_id;
 
   try {
-    const guestQuery = "SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2";
     const reservationsQuery =
-      "SELECT * FROM reservations WHERE guest_id = $1 AND tenant_id = $2 AND check_out > CURRENT_TIMESTAMP";
-
-    const guestResponse = await pool.query(guestQuery, [guest_id, tenant_id]);
-    const reservationsResponse = await pool.query(reservationsQuery, [guest_id, tenant_id]);
-
-    const guest = guestResponse.rows[0];
-    const reservations = reservationsResponse.rows;
+      "SELECT * FROM reservations WHERE reservation_id = $1 AND tenant_id = $2 AND check_out > CURRENT_TIMESTAMP";
+    const reservationsResponse = await pool.query(reservationsQuery, [reservation_id, tenant_id]);
+    const reservation = reservationsResponse.rows[0];
 
     res.status(200).json({
       success: true,
-      data: { guest, reservations },
+      data: reservation,
+    });
+  } catch (err) {
+    return next(new ErrorHandler(`Error: Unable to fetch guest reservation. Message: ${err.message}`, 500));
+  }
+});
+
+const getReservationByGuestId = catchAsyncErrors(async (req, res, next) => {
+  const primary_guest_id = req.params.id;
+  const tenant_id = req.user.tenant_id;
+
+  try {
+    const reservationsQuery =
+      "SELECT * FROM reservations WHERE primary_guest_id = $1 AND tenant_id = $2 AND check_out > CURRENT_TIMESTAMP";
+    const reservationsResponse = await pool.query(reservationsQuery, [primary_guest_id, tenant_id]);
+    const reservations = reservationsResponse.rows[0];
+
+    res.status(200).json({
+      success: true,
+      data: reservations,
     });
   } catch (error) {
-    return next(new ErrorHandler(`Error: Unable to fetch guest reservations. Message: ${err.message}`, 500));
+    console.log(error);
+    return next(new ErrorHandler(`Error: Unable to fetch current guest reservations. Message: ${error.message}`, 500));
   }
 });
 
@@ -157,11 +174,20 @@ const getReservationsAnalytics = catchAsyncErrors(async (req, res, next) => {
 
   try {
     const reservationsQuery = `
-      SELECT *, 
-      DATE_TRUNC('week', check_in) AS week_start 
-      FROM reservations
-      WHERE tenant_id = $1
-      ORDER BY ${sortBy} ${order}
+      SELECT 
+        r.*, 
+        DATE_TRUNC('week', r.check_in) AS week_start,
+        COUNT(rg.guest_id) AS total_guests
+      FROM 
+        reservations r
+      LEFT JOIN 
+        reservation_guests rg ON r.reservation_id = rg.reservation_id
+      WHERE 
+        r.tenant_id = $1
+      GROUP BY 
+        r.reservation_id
+      ORDER BY 
+        ${sortBy} ${order}
     `;
     const countQuery = `SELECT COUNT(*) FROM reservations WHERE tenant_id = $1`;
 
@@ -173,13 +199,29 @@ const getReservationsAnalytics = catchAsyncErrors(async (req, res, next) => {
     const reservations = reservationsResult.rows;
     const totalReservations = parseInt(countResult.rows[0].count, 10);
 
-    // Group reservations by week
+    // Group reservations by week and include total guests count
     const reservationsByWeek = reservations.reduce((acc, reservation) => {
-      const weekStart = reservation.week_start.toISOString().split("T")[0];
-      if (!acc[weekStart]) {
-        acc[weekStart] = [];
+      const checkIn = moment(reservation.check_in);
+      const checkOut = moment(reservation.check_out).set({ hour: 15, minute: 0, second: 0 });
+      const totalGuests = parseInt(reservation.total_guests, 10);
+
+      let currentWeekStart = checkIn.clone().startOf("isoWeek");
+
+      while (currentWeekStart.isBefore(checkOut)) {
+        const weekStart = currentWeekStart.toISOString().split("T")[0];
+        if (!acc[weekStart]) {
+          acc[weekStart] = {
+            reservations: [],
+            totalGuestsForWeek: 0,
+          };
+        }
+        if (!acc[weekStart].reservations.some((res) => res.reservation_id === reservation.reservation_id)) {
+          acc[weekStart].reservations.push(reservation);
+          acc[weekStart].totalGuestsForWeek += totalGuests;
+        }
+        currentWeekStart.add(1, "weeks");
       }
-      acc[weekStart].push(reservation);
+
       return acc;
     }, {});
 
@@ -191,6 +233,10 @@ const getReservationsAnalytics = catchAsyncErrors(async (req, res, next) => {
       },
       meta: {
         totalReservations,
+        totalGuestsForWeek: Object.keys(reservationsByWeek).reduce((acc, week) => {
+          acc[week] = reservationsByWeek[week].totalGuestsForWeek;
+          return acc;
+        }, {}),
       },
     });
   } catch (err) {
@@ -204,4 +250,10 @@ const calculateGuestStatus = (check_out) => {
   return moment().isBefore(checkOutMoment) ? "active" : "inactive";
 };
 
-module.exports = { createReservation, getReservations, getReservationsById, getReservationsAnalytics };
+module.exports = {
+  createReservation,
+  getReservations,
+  getReservationById,
+  getReservationByGuestId,
+  getReservationsAnalytics,
+};
