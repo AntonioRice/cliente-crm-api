@@ -19,17 +19,18 @@ const mockData = [
       last_name: "Smith",
       phone_number: "+16123332222",
     },
+    vehicle: {
+      make: "Porsche",
+      model: "911",
+      plate_number: "NPJ 753",
+    },
+
     room_numbers: [11, 15, 9],
     check_in: "01/13/2024",
     check_out: "03/18/2024",
     payment_method: "transfer",
     payment_status: "failed",
     total_amount: 650,
-    vehicle: {
-      make: "Porsche",
-      model: "911",
-      plate_number: "NPJ 753",
-    },
   },
   {
     tenant_id: 1,
