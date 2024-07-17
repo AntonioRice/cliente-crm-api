@@ -124,16 +124,15 @@ const updateProfilePic = catchAsyncErrors(async (req, res, next) => {
       return next(new ErrorHandler(`User not found or you don't have permission to update this user`, 404));
     }
 
-    const processedUser = result.rows.map((user) => ({
-      ...user,
-      profile_picture: bufferToBase64(user.profile_picture),
+    const processedUser = result.rows.map((data) => ({
+      ...data,
+      profile_picture: bufferToBase64(data.profile_picture),
     }));
 
-    console.log(processedUser);
     res.status(200).json({
       success: true,
       message: "Profile picture updated successfully",
-      data: processedUser,
+      data: processedUser[0],
     });
   } catch (err) {
     return next(
