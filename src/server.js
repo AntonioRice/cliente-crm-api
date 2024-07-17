@@ -20,6 +20,11 @@ app.use(express.json());
   });
 })(app, "./routes");
 
+app.use((req, res, next) => {
+  console.log(`404 Not Found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ message: "Route not found" });
+});
+
 app.use(errorMiddleware);
 
 pool.connect((err, client, release) => {

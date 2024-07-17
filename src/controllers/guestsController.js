@@ -167,6 +167,7 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
   const sortColumn = sortKey;
   const sortOrder = sortDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
 
+  //TODO fix sort, g vs r
   try {
     const currentGuestsQuery = `
       SELECT g.*, r.*

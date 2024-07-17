@@ -78,7 +78,6 @@ CREATE TABLE reservation_guests (
     FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
 );
 
-
 -- {
 --     "language": "en",
 --     "ui_mode": "dark",
