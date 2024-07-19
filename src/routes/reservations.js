@@ -8,10 +8,12 @@ const {
   getReservationById,
   getReservationByGuestId,
   getReservationsAnalytics,
+  getReservationsByMonth,
 } = require("../controllers/reservationsController");
 
 router.get("/guests/:id/reservations", isAuthenticatedUser, getReservationByGuestId);
 router.route("/reservations/analytics").get(isAuthenticatedUser, getReservationsAnalytics);
+router.route("/reservations/calendar").get(isAuthenticatedUser, getReservationsByMonth);
 router.route("/reservations/:id").get(isAuthenticatedUser, getReservationById);
 router.route("/reservations").get(isAuthenticatedUser, getReservations).post(isAuthenticatedUser, createReservation);
 
