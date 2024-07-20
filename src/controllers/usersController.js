@@ -143,6 +143,7 @@ const updateProfilePic = catchAsyncErrors(async (req, res, next) => {
 
 const updateUserById = catchAsyncErrors(async (req, res, next) => {
   const { id: userId } = req.params;
+  const { role, tenant_id } = req.body;
   const allowedFields = [
     "tenant_id",
     "user_name",
@@ -153,6 +154,32 @@ const updateUserById = catchAsyncErrors(async (req, res, next) => {
     "email",
     "preferences",
   ];
+
+  const userRole = req.user.role;
+  const userTenantId = req.user.tenant_id;
+
+  if (role) {
+    if (userRole === "admin") {
+      if (role !== "employee" && role !== "admin") {
+        return res.status(403).json({
+          success: false,
+          message: "Admins can only set roles to 'employee' or 'admin'.",
+        });
+      }
+      if (tenant_id !== userTenantId) {
+        return res.status(403).json({
+          success: false,
+          message: "Admins can only set roles for users within their tenant.",
+        });
+      }
+    } else if (userRole !== "superAdmin") {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to update roles.",
+      });
+    }
+  }
+
   const values = [];
   let setClause = [];
   let counter = 1;
