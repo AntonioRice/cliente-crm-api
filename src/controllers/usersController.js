@@ -159,8 +159,8 @@ const updateUserById = catchAsyncErrors(async (req, res, next) => {
   const userTenantId = req.user.tenant_id;
 
   if (role) {
-    if (userRole === "admin") {
-      if (role !== "employee" && role !== "admin") {
+    if (userRole === "Admin") {
+      if (role !== "Employee" && role !== "Admin") {
         return res.status(403).json({
           success: false,
           message: "Admins can only set roles to 'employee' or 'admin'.",
@@ -172,7 +172,7 @@ const updateUserById = catchAsyncErrors(async (req, res, next) => {
           message: "Admins can only set roles for users within their tenant.",
         });
       }
-    } else if (userRole !== "superAdmin") {
+    } else if (userRole !== "SuperAdmin") {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to update roles.",
