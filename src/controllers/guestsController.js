@@ -3,18 +3,7 @@ const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 
 const createGuest = catchAsyncErrors(async (req, res, next) => {
-  const {
-    first_name,
-    last_name,
-    date_of_birth,
-    nationality,
-    address,
-    identification_number,
-    email,
-    phone_number,
-    emergency_contact,
-    vehicle,
-  } = req.body;
+  const { first_name, last_name, date_of_birth, nationality, address, identification_number, email, phone_number, emergency_contact, vehicle } = req.body;
 
   const tenant_id = req.body.tenant_id || req.user.tenant_id;
 
@@ -33,10 +22,7 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
   };
 
   try {
-    const existingGuest = await pool.query("SELECT * FROM guests WHERE email = $1 AND tenant_id = $2", [
-      email,
-      tenant_id,
-    ]);
+    const existingGuest = await pool.query("SELECT * FROM guests WHERE email = $1 AND tenant_id = $2", [email, tenant_id]);
 
     let guest;
     if (existingGuest.rows.length > 0) {
@@ -48,19 +34,7 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
             emergency_contact = $8, vehicle = $9, updated_date = NOW() 
         WHERE email = $10 AND tenant_id = $11 
         RETURNING *`,
-        [
-          first_name,
-          last_name,
-          date_of_birth,
-          nationality,
-          guestData.address,
-          identification_number,
-          phone_number,
-          guestData.emergency_contact,
-          guestData.vehicle,
-          email,
-          tenant_id,
-        ]
+        [first_name, last_name, date_of_birth, nationality, guestData.address, identification_number, phone_number, guestData.emergency_contact, guestData.vehicle, email, tenant_id]
       );
     } else {
       guest = await pool.query(
@@ -70,19 +44,7 @@ const createGuest = catchAsyncErrors(async (req, res, next) => {
         identification_number, email, phone_number, emergency_contact, vehicle) 
         VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
         RETURNING *`,
-        [
-          tenant_id,
-          first_name,
-          last_name,
-          date_of_birth,
-          nationality,
-          guestData.address,
-          identification_number,
-          email,
-          phone_number,
-          guestData.emergency_contact,
-          guestData.vehicle,
-        ]
+        [tenant_id, first_name, last_name, date_of_birth, nationality, guestData.address, identification_number, email, phone_number, guestData.emergency_contact, guestData.vehicle]
       );
     }
 
@@ -137,10 +99,7 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
     `;
     const countQuery = `SELECT COUNT(*) FROM guests`;
 
-    const [guestsResult, countResult] = await Promise.all([
-      pool.query(guestsQuery, [limit, offset]),
-      pool.query(countQuery),
-    ]);
+    const [guestsResult, countResult] = await Promise.all([pool.query(guestsQuery, [limit, offset]), pool.query(countQuery)]);
 
     const totalGuests = parseInt(countResult.rows[0].count, 10);
     const totalPages = Math.ceil(totalGuests / limit);
@@ -191,10 +150,7 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
       WHERE r.guest_status = $1
     `;
 
-    const [currentGuestRes, countRes] = await Promise.all([
-      pool.query(currentGuestsQuery, ["active", limit, offset]),
-      pool.query(countQuery, ["active"]),
-    ]);
+    const [currentGuestRes, countRes] = await Promise.all([pool.query(currentGuestsQuery, ["active", limit, offset]), pool.query(countQuery, ["active"])]);
 
     const currentGuests = currentGuestRes.rows;
     const totalCurrentGuests = parseInt(countRes.rows[0].count, 10);

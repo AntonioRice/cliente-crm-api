@@ -4,24 +4,12 @@ const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const moment = require("moment-timezone");
 
 const createReservation = catchAsyncErrors(async (req, res, next) => {
-  const {
-    primary_guest_id,
-    room_numbers,
-    check_in,
-    check_out,
-    payment_method,
-    total_amount,
-    payment_status,
-    additional_guests,
-  } = req.body;
+  const { primary_guest_id, room_numbers, check_in, check_out, payment_method, total_amount, payment_status, additional_guests } = req.body;
 
   const tenant_id = req.body.tenant_id || req.user.tenant_id;
 
   try {
-    const primaryGuest = await pool.query("SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2", [
-      primary_guest_id,
-      tenant_id,
-    ]);
+    const primaryGuest = await pool.query("SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2", [primary_guest_id, tenant_id]);
 
     if (primaryGuest.rows.length === 0) {
       return res.status(404).json({ message: "Primary guest not found" });
@@ -39,37 +27,19 @@ const createReservation = catchAsyncErrors(async (req, res, next) => {
       (tenant_id, primary_guest_id, check_in, check_out, room_numbers, payment_method, total_amount, payment_status, guest_status, primary_guest) 
       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
       RETURNING *`,
-      [
-        tenant_id,
-        primary_guest_id,
-        check_in,
-        check_out,
-        `{${room_numbers}}`,
-        payment_method,
-        total_amount,
-        payment_status,
-        guestStatus,
-        primary_guest,
-      ]
+      [tenant_id, primary_guest_id, check_in, check_out, `{${room_numbers}}`, payment_method, total_amount, payment_status, guestStatus, primary_guest]
     );
 
     const reservationId = reservation.rows[0].reservation_id;
 
-    await pool.query("INSERT INTO reservation_guests (reservation_id, guest_id, tenant_id) VALUES ($1, $2, $3)", [
-      reservationId,
-      primary_guest_id,
-      tenant_id,
-    ]);
+    await pool.query("INSERT INTO reservation_guests (reservation_id, guest_id, tenant_id) VALUES ($1, $2, $3)", [reservationId, primary_guest_id, tenant_id]);
 
     if (additional_guests && additional_guests.length) {
       for (let guest of additional_guests) {
         let guestId = guest.guest_id;
 
         if (guestId) {
-          const existingGuest = await pool.query("SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2", [
-            guestId,
-            tenant_id,
-          ]);
+          const existingGuest = await pool.query("SELECT * FROM guests WHERE guest_id = $1 AND tenant_id = $2", [guestId, tenant_id]);
 
           if (existingGuest.rows.length === 0) {
             guestId = null;
@@ -77,10 +47,7 @@ const createReservation = catchAsyncErrors(async (req, res, next) => {
         }
 
         if (!guestId && guest.identification_number) {
-          const existingGuest = await pool.query(
-            "SELECT * FROM guests WHERE identification_number = $1 AND tenant_id = $2",
-            [guest.identification_number, tenant_id]
-          );
+          const existingGuest = await pool.query("SELECT * FROM guests WHERE identification_number = $1 AND tenant_id = $2", [guest.identification_number, tenant_id]);
 
           if (existingGuest.rows.length > 0) {
             guestId = existingGuest.rows[0].guest_id;
@@ -93,24 +60,12 @@ const createReservation = catchAsyncErrors(async (req, res, next) => {
             INSERT INTO guests (tenant_id, first_name, last_name, date_of_birth, nationality, email, identification_number) 
             VALUES ($1, $2, $3, $4, $5, $6, $7) 
             RETURNING guest_id`,
-            [
-              tenant_id,
-              guest.first_name,
-              guest.last_name,
-              guest.date_of_birth,
-              guest.nationality,
-              guest.email,
-              guest.identification_number,
-            ]
+            [tenant_id, guest.first_name, guest.last_name, guest.date_of_birth, guest.nationality, guest.email, guest.identification_number]
           );
           guestId = newGuest.rows[0].guest_id;
         }
 
-        await pool.query("INSERT INTO reservation_guests (reservation_id, guest_id, tenant_id) VALUES ($1, $2, $3)", [
-          reservationId,
-          guestId,
-          tenant_id,
-        ]);
+        await pool.query("INSERT INTO reservation_guests (reservation_id, guest_id, tenant_id) VALUES ($1, $2, $3)", [reservationId, guestId, tenant_id]);
       }
     }
 
@@ -138,10 +93,7 @@ const getReservations = catchAsyncErrors(async (req, res, next) => {
     const countQuery = `SELECT COUNT(*) FROM reservations
     WHERE tenant_id = $1`;
 
-    const [reservationsResult, countResult] = await Promise.all([
-      pool.query(reservationsQuery, [req.user.tenant_id, limit, offset]),
-      pool.query(countQuery, [req.user.tenant_id]),
-    ]);
+    const [reservationsResult, countResult] = await Promise.all([pool.query(reservationsQuery, [req.user.tenant_id, limit, offset]), pool.query(countQuery, [req.user.tenant_id])]);
 
     const reservations = reservationsResult.rows;
     const totalReservations = parseInt(countResult.rows[0].count, 10);
@@ -173,7 +125,7 @@ const getReservationById = catchAsyncErrors(async (req, res, next) => {
       FROM reservations r
       LEFT JOIN reservation_guests rg ON r.reservation_id = rg.reservation_id
       LEFT JOIN guests g ON rg.guest_id = g.guest_id
-      WHERE r.reservation_id = $1 AND r.tenant_id = $2 AND r.check_out > CURRENT_TIMESTAMP
+      WHERE r.reservation_id = $1 AND r.tenant_id = $2
       GROUP BY r.reservation_id
     `;
     const reservationsResponse = await pool.query(reservationsQuery, [reservation_id, tenant_id]);
@@ -193,8 +145,7 @@ const getReservationByGuestId = catchAsyncErrors(async (req, res, next) => {
   const tenant_id = req.user.tenant_id;
 
   try {
-    const reservationsQuery =
-      "SELECT * FROM reservations WHERE primary_guest_id = $1 AND tenant_id = $2 AND check_out > CURRENT_TIMESTAMP";
+    const reservationsQuery = "SELECT * FROM reservations WHERE primary_guest_id = $1 AND tenant_id = $2 AND check_out > CURRENT_TIMESTAMP";
     const reservationsResponse = await pool.query(reservationsQuery, [primary_guest_id, tenant_id]);
     const reservations = reservationsResponse.rows[0];
 
@@ -230,10 +181,7 @@ const getReservationsAnalytics = catchAsyncErrors(async (req, res, next) => {
     `;
     const countQuery = `SELECT COUNT(*) FROM reservations WHERE tenant_id = $1`;
 
-    const [reservationsResult, countResult] = await Promise.all([
-      pool.query(reservationsQuery, [req.user.tenant_id]),
-      pool.query(countQuery, [req.user.tenant_id]),
-    ]);
+    const [reservationsResult, countResult] = await Promise.all([pool.query(reservationsQuery, [req.user.tenant_id]), pool.query(countQuery, [req.user.tenant_id])]);
 
     const reservations = reservationsResult.rows;
     const totalReservations = parseInt(countResult.rows[0].count, 10);
@@ -289,11 +237,26 @@ const getReservationsByMonth = catchAsyncErrors(async (req, res, next) => {
 
   try {
     const reservationsQuery = `
-      SELECT * FROM reservations
-      WHERE tenant_id = $1
-      AND EXTRACT(MONTH FROM check_in) = $2
-      AND EXTRACT(YEAR FROM check_in) = $3
-      ORDER BY check_in ASC
+      SELECT r.*, 
+             JSON_AGG(
+               JSON_BUILD_OBJECT(
+                 'guest_id', g.guest_id,
+                 'first_name', g.first_name,
+                 'last_name', g.last_name,
+                 'date_of_birth', g.date_of_birth,
+                 'nationality', g.nationality,
+                 'identification_number', g.identification_number,
+                 'email', g.email
+               )
+             ) FILTER (WHERE g.guest_id IS NOT NULL AND g.guest_id != r.primary_guest_id) AS additional_guests
+      FROM reservations r
+      LEFT JOIN reservation_guests rg ON r.reservation_id = rg.reservation_id
+      LEFT JOIN guests g ON rg.guest_id = g.guest_id
+      WHERE r.tenant_id = $1
+      AND EXTRACT(MONTH FROM r.check_in) = $2
+      AND EXTRACT(YEAR FROM r.check_in) = $3
+      GROUP BY r.reservation_id
+      ORDER BY r.check_in ASC
     `;
     const reservationsResponse = await pool.query(reservationsQuery, [tenant_id, month, year]);
     const reservations = reservationsResponse.rows;
