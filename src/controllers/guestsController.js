@@ -176,11 +176,11 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
         SELECT DISTINCT ON (rg.guest_id) rg.guest_id, r.*
         FROM reservation_guests rg
         JOIN reservations r ON rg.reservation_id = r.reservation_id
-        WHERE r.check_out > CURRENT_TIMESTAMP
+        WHERE r.guest_status = $1
         ORDER BY rg.guest_id, r.${sortColumn} ${sortOrder}
       ) r ON g.guest_id = r.guest_id
       ORDER BY g.${sortColumn} ${sortOrder}
-      LIMIT $1 OFFSET $2
+      LIMIT $2 OFFSET $3
     `;
 
     const countQuery = `
@@ -188,12 +188,12 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
       FROM guests g
       JOIN reservation_guests rg ON g.guest_id = rg.guest_id
       JOIN reservations r ON rg.reservation_id = r.reservation_id
-      WHERE r.check_out > CURRENT_TIMESTAMP
+      WHERE r.guest_status = $1
     `;
 
     const [currentGuestRes, countRes] = await Promise.all([
-      pool.query(currentGuestsQuery, [limit, offset]),
-      pool.query(countQuery),
+      pool.query(currentGuestsQuery, ["active", limit, offset]),
+      pool.query(countQuery, ["active"]),
     ]);
 
     const currentGuests = currentGuestRes.rows;

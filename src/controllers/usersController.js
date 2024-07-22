@@ -169,7 +169,7 @@ const updateUserById = catchAsyncErrors(async (req, res, next) => {
       if (tenant_id !== userTenantId) {
         return res.status(403).json({
           success: false,
-          message: "Admins can only set roles for users within their tenant.",
+          message: "Admins can only set roles for users within their business.",
         });
       }
     } else if (userRole !== "SuperAdmin") {
