@@ -93,10 +93,18 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
 
   try {
     const guestsQuery = `
-      SELECT * FROM guests g
-      ORDER BY ${sortColumn} ${sortOrder}
+      SELECT g.*, r.*
+      FROM guests g
+      LEFT JOIN (
+        SELECT DISTINCT ON (rg.guest_id) rg.guest_id, r.*
+        FROM reservation_guests rg
+        JOIN reservations r ON rg.reservation_id = r.reservation_id
+        ORDER BY rg.guest_id, r.${sortColumn} ${sortOrder}
+      ) r ON g.guest_id = r.guest_id
+      ORDER BY g.${sortColumn} ${sortOrder}
       LIMIT $1 OFFSET $2
     `;
+
     const countQuery = `SELECT COUNT(*) FROM guests`;
 
     const [guestsResult, countResult] = await Promise.all([pool.query(guestsQuery, [limit, offset]), pool.query(countQuery)]);
@@ -116,7 +124,7 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
     });
   } catch (err) {
     console.error("Error retrieving all guests and reservations:", err);
-    res.status(500).json({ err: "Internal Server Error" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
@@ -126,7 +134,6 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
   const sortColumn = sortKey;
   const sortOrder = sortDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
 
-  //TODO fix sort, g vs r
   try {
     const currentGuestsQuery = `
       SELECT g.*, r.*
@@ -136,6 +143,7 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
         FROM reservation_guests rg
         JOIN reservations r ON rg.reservation_id = r.reservation_id
         WHERE r.guest_status = $1
+        AND (r.check_out + INTERVAL '15 hours') > NOW()  -- Check if checkout time + 15 hours (i.e., 3 PM) is after current time
         ORDER BY rg.guest_id, r.${sortColumn} ${sortOrder}
       ) r ON g.guest_id = r.guest_id
       ORDER BY g.${sortColumn} ${sortOrder}
@@ -148,6 +156,7 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
       JOIN reservation_guests rg ON g.guest_id = rg.guest_id
       JOIN reservations r ON rg.reservation_id = r.reservation_id
       WHERE r.guest_status = $1
+      AND (r.check_out + INTERVAL '15 hours') > NOW()  -- Check if checkout time + 15 hours (i.e., 3 PM) is after current time
     `;
 
     const [currentGuestRes, countRes] = await Promise.all([pool.query(currentGuestsQuery, ["active", limit, offset]), pool.query(countQuery, ["active"])]);
