@@ -93,12 +93,21 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
 
   try {
     const guestsQuery = `
-      SELECT g.*, r.*
+      SELECT g.*, 
+             COALESCE(r.reservation_id, NULL) AS reservation_id, 
+             COALESCE(r.check_in, NULL) AS check_in, 
+             COALESCE(r.check_out, NULL) AS check_out, 
+             COALESCE(r.guest_status, NULL) AS guest_status
       FROM guests g
       LEFT JOIN (
-        SELECT DISTINCT ON (rg.guest_id) rg.guest_id, r.*
+        SELECT DISTINCT ON (rg.guest_id) 
+               rg.guest_id, 
+               r.reservation_id, 
+               r.check_in, 
+               r.check_out, 
+               r.guest_status
         FROM reservation_guests rg
-        JOIN reservations r ON rg.reservation_id = r.reservation_id
+        LEFT JOIN reservations r ON rg.reservation_id = r.reservation_id
         ORDER BY rg.guest_id, r.${sortColumn} ${sortOrder}
       ) r ON g.guest_id = r.guest_id
       ORDER BY g.${sortColumn} ${sortOrder}
