@@ -29,7 +29,7 @@ const createUser = catchAsyncErrors(async (req, res, next) => {
 
 const getUsers = catchAsyncErrors(async (req, res, next) => {
   const tenant_id = req.user.tenant_id;
-  const { page = 1, limit = 10, sortKey = "created_date", sortDirection = "DESC" } = req.query;
+  const { page = 1, limit = 10, sortKey = "created_date", sortDirection = "DESC", searchQuery } = req.query;
   const offset = (page - 1) * limit;
   const sortColumn = sortKey;
   const sortOrder = sortDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -37,17 +37,15 @@ const getUsers = catchAsyncErrors(async (req, res, next) => {
   const query = `
   SELECT user_id, email, first_name, last_name, phone_number, preferences, role, tenant_id, user_name, status, profile_picture 
   FROM users
-  WHERE tenant_id = $1
+  WHERE first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1
+  AND tenant_id = $2
   ORDER BY ${sortColumn} ${sortOrder}
-  LIMIT $2 OFFSET $3
+  LIMIT $3 OFFSET $4
   `;
   const countQuery = `SELECT COUNT(*) FROM users WHERE tenant_id = $1`;
 
   try {
-    const [usersResult, countResult] = await Promise.all([
-      pool.query(query, [tenant_id, limit, offset]),
-      pool.query(countQuery, [tenant_id]),
-    ]);
+    const [usersResult, countResult] = await Promise.all([pool.query(query, [`%${searchQuery}%`, tenant_id, limit, offset]), pool.query(countQuery, [tenant_id])]);
 
     const totalUsers = parseInt(countResult.rows[0].count, 10);
     const totalPages = Math.ceil(totalUsers / limit);
@@ -68,9 +66,7 @@ const getUsers = catchAsyncErrors(async (req, res, next) => {
       },
     });
   } catch (err) {
-    return next(
-      new ErrorHandler(`Error: Unable to retrieve users for tenant ID ${tenant_id}. Message: ${err.message}`, 500)
-    );
+    return next(new ErrorHandler(`Error: Unable to retrieve users for tenant ID ${tenant_id}. Message: ${err.message}`, 500));
   }
 });
 
@@ -135,25 +131,14 @@ const updateProfilePic = catchAsyncErrors(async (req, res, next) => {
       data: processedUser[0],
     });
   } catch (err) {
-    return next(
-      new ErrorHandler(`Error: Unable to Upload Profile Pic for User: ${user_id}. Message: ${err.message}`, 500)
-    );
+    return next(new ErrorHandler(`Error: Unable to Upload Profile Pic for User: ${user_id}. Message: ${err.message}`, 500));
   }
 });
 
 const updateUserById = catchAsyncErrors(async (req, res, next) => {
   const { id: userId } = req.params;
   const { role, tenant_id } = req.body;
-  const allowedFields = [
-    "tenant_id",
-    "user_name",
-    "first_name",
-    "last_name",
-    "role",
-    "phone_number",
-    "email",
-    "preferences",
-  ];
+  const allowedFields = ["tenant_id", "user_name", "first_name", "last_name", "role", "phone_number", "email", "preferences"];
 
   const userRole = req.user.role;
   const userTenantId = req.user.tenant_id;
@@ -235,16 +220,7 @@ const completeUserRegistration = catchAsyncErrors(async (req, res, next) => {
       RETURNING *;
     `;
 
-    const values = [
-      first_name,
-      last_name,
-      email,
-      phone_number,
-      JSON.stringify(preferences),
-      hashedPassword,
-      status,
-      parseInt(user_id, 10),
-    ];
+    const values = [first_name, last_name, email, phone_number, JSON.stringify(preferences), hashedPassword, status, parseInt(user_id, 10)];
 
     const result = await pool.query(query, values);
 

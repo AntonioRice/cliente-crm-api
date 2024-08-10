@@ -86,11 +86,11 @@ const getGuestById = catchAsyncErrors(async (req, res, next) => {
 });
 
 const getAllGuests = catchAsyncErrors(async (req, res, next) => {
+  const tenant_id = req.user.tenant_id;
   const { page = 1, limit = 10, sortKey = "created_date", sortDirection = "DESC", searchQuery } = req.query;
   const offset = (page - 1) * limit;
   const sortColumn = sortKey;
   const sortOrder = sortDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
-  const tenant_id = req.user.tenant_id;
 
   try {
     const guestsQuery = `
@@ -141,7 +141,8 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
 });
 
 const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
-  const { page = 1, limit = 10, sortKey = "created_date", sortDirection = "DESC" } = req.query;
+  const tenant_id = req.user.tenant_id;
+  const { page = 1, limit = 10, sortKey = "created_date", sortDirection = "DESC", searchQuery } = req.query;
   const offset = (page - 1) * limit;
   const sortColumn = sortKey;
   const sortOrder = sortDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -158,8 +159,10 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
         AND (r.check_out + INTERVAL '15 hours') > NOW()  -- Check if checkout time + 15 hours (i.e., 3 PM) is after current time
         ORDER BY rg.guest_id, r.${sortColumn} ${sortOrder}
       ) r ON g.guest_id = r.guest_id
+      WHERE first_name ILIKE $2 OR last_name ILIKE $2 OR email ILIKE $2
+      AND g.tenant_id = $3
       ORDER BY g.${sortColumn} ${sortOrder}
-      LIMIT $2 OFFSET $3
+      LIMIT $4 OFFSET $5
     `;
 
     const countQuery = `
@@ -171,7 +174,7 @@ const getCurrentGuests = catchAsyncErrors(async (req, res, next) => {
       AND (r.check_out + INTERVAL '15 hours') > NOW()  -- Check if checkout time + 15 hours (i.e., 3 PM) is after current time
     `;
 
-    const [currentGuestRes, countRes] = await Promise.all([pool.query(currentGuestsQuery, ["active", limit, offset]), pool.query(countQuery, ["active"])]);
+    const [currentGuestRes, countRes] = await Promise.all([pool.query(currentGuestsQuery, ["active", `%${searchQuery}%`, tenant_id, limit, offset]), pool.query(countQuery, ["active"])]);
 
     const currentGuests = currentGuestRes.rows;
     const totalCurrentGuests = parseInt(countRes.rows[0].count, 10);
