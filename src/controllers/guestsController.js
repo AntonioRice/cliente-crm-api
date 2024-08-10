@@ -86,10 +86,11 @@ const getGuestById = catchAsyncErrors(async (req, res, next) => {
 });
 
 const getAllGuests = catchAsyncErrors(async (req, res, next) => {
-  const { page = 1, limit = 10, sortKey = "created_date", sortDirection = "DESC" } = req.query;
+  const { page = 1, limit = 10, sortKey = "created_date", sortDirection = "DESC", searchQuery } = req.query;
   const offset = (page - 1) * limit;
   const sortColumn = sortKey;
   const sortOrder = sortDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
+  const tenant_id = req.user.tenant_id;
 
   try {
     const guestsQuery = `
@@ -110,13 +111,15 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
         LEFT JOIN reservations r ON rg.reservation_id = r.reservation_id
         ORDER BY rg.guest_id, r.${sortColumn} ${sortOrder}
       ) r ON g.guest_id = r.guest_id
+      WHERE first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1
+      AND tenant_id = $2
       ORDER BY g.${sortColumn} ${sortOrder}
-      LIMIT $1 OFFSET $2
+      LIMIT $3 OFFSET $4
     `;
 
     const countQuery = `SELECT COUNT(*) FROM guests`;
 
-    const [guestsResult, countResult] = await Promise.all([pool.query(guestsQuery, [limit, offset]), pool.query(countQuery)]);
+    const [guestsResult, countResult] = await Promise.all([pool.query(guestsQuery, [`%${searchQuery}%`, tenant_id, limit, offset]), pool.query(countQuery)]);
 
     const totalGuests = parseInt(countResult.rows[0].count, 10);
     const totalPages = Math.ceil(totalGuests / limit);
