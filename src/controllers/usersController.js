@@ -1,20 +1,45 @@
+const dotenv = require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const pool = require("../database/db");
+const crypto = require("crypto");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
+const { handleSendEmail } = require("./emailController");
 
 const createUser = catchAsyncErrors(async (req, res, next) => {
-  const { tenant_id, user_name, first_name, last_name, role, email } = req.body;
-  const query = `
+  const { user_name, first_name, last_name, role, email } = req.body;
+  const tenant_id = req.body.tenant_id || req.user.tenant_id;
+
+  const query = "SELECT * FROM users WHERE email = $1";
+  const result = await pool.query(query, [email]);
+
+  if (result.rowCount > 0) {
+    return next(new ErrorHandler("A user with this email already exists"));
+  }
+
+  const resetToken = crypto.randomBytes(20).toString("hex");
+  const resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+  const resetPasswordExpires = new Date(Date.now() + 30 * 60 * 1000);
+
+  const client_url = process.env.CLIENT_URL || "http://localhost:3010";
+  const registrationUrl = `${client_url}/register/${resetToken}?first_name=${first_name}&last_name=${last_name}&email=${email}`;
+  const subject = "Cliente.io - New User Registration";
+  const messageBody = `Dear ${first_name} ${last_name},\n\nWelcome to Cliente.io! We are pleased to have you join us.\n\nYour username is: ${user_name}. To complete your registration and get started, please click the link below:\n\n${registrationUrl}\n\nIf you encounter any issues during the registration process, please don't hesitate to reach out to your designated Administrator for assistance.\n\nBest regards,\nThe Cliente.io Team`;
+
+  const insertQuery = `
     INSERT INTO users 
-    (tenant_id, user_name, first_name, last_name, role, email) 
-    VALUES($1, $2, $3, $4, $5, $6) 
+    (tenant_id, user_name, first_name, last_name, role, email, reset_password_token, reset_password_expires) 
+    VALUES($1, $2, $3, $4, $5, $6, $7, $8) 
     RETURNING *`;
 
-  const values = [tenant_id, user_name, first_name, last_name, role, email];
+  const values = [tenant_id, user_name, first_name, last_name, role, email, resetPasswordToken, resetPasswordExpires];
 
   try {
-    const newUser = await pool.query(query, values);
+    const newUser = await pool.query(insertQuery, values);
+
+    if (newUser.rows[0]) {
+      await handleSendEmail(email, subject, messageBody);
+    }
 
     res.status(201).json({
       success: true,
