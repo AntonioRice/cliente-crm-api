@@ -126,6 +126,22 @@ const getUserById = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
+const deleteUserById = catchAsyncErrors(async (req, res, next) => {
+  const tenant_id = req.user.tenant_id;
+  const userId = req.params.id;
+  const query = `DELETE FROM users WHERE user_id = $1 AND tenant_id = $2`;
+
+  try {
+    await pool.query(query, [userId, tenant_id]);
+    res.status(204).json({
+      success: true,
+      message: `User ${userId}, successfully deleted`,
+    });
+  } catch (err) {
+    return next(new ErrorHandler(`Error: Unable to delete User: ${userId}. Message: ${err.message}`, 500));
+  }
+});
+
 const updateProfilePic = catchAsyncErrors(async (req, res, next) => {
   const tenant_id = req.user.tenant_id;
   const user_id = req.params.id;
@@ -276,4 +292,4 @@ const bufferToBase64 = (buffer) => {
   return null;
 };
 
-module.exports = { createUser, getUserById, getUsers, updateUserById, updateProfilePic, completeUserRegistration };
+module.exports = { createUser, getUserById, getUsers, updateUserById, updateProfilePic, deleteUserById, completeUserRegistration };
