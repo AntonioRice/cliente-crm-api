@@ -164,57 +164,62 @@ const getReservationByGuestId = catchAsyncErrors(async (req, res, next) => {
 });
 
 const getReservationsAnalytics = catchAsyncErrors(async (req, res, next) => {
-  const { sortBy = "check_in", order = "ASC" } = req.query;
+  const { sortBy = "check_in", order = "ASC", currentWeek } = req.query;
 
   try {
-    const reservationsQuery = `
-      SELECT 
+    const currentWeekMoment = moment(currentWeek, "YYYY-MM-DD").startOf("week").day(0);
+    const twoWeeksPrior = currentWeekMoment.clone().subtract(1, "month").format("YYYY-MM-DD");
+    const twoWeeksAfter = currentWeekMoment.clone().add(1, "month").endOf("week").format("YYYY-MM-DD");
+
+    const reservationsQuery = ` 
+    SELECT 
         r.*, 
-        DATE_TRUNC('week', r.check_in) AS week_start,
         COUNT(rg.guest_id) AS total_guests
       FROM 
         reservations r
       LEFT JOIN 
         reservation_guests rg ON r.reservation_id = rg.reservation_id
       WHERE 
-        r.tenant_id = $1
+        r.tenant_id = $1 AND
+        r.check_in >= $2 AND r.check_in <= $3
       GROUP BY 
         r.reservation_id
       ORDER BY 
         ${sortBy} ${order}
     `;
-    const countQuery = `SELECT COUNT(*) FROM reservations WHERE tenant_id = $1`;
+    const countQuery = `SELECT COUNT(*) FROM reservations WHERE tenant_id = $1 AND check_in >= $2 AND check_in <= $3`;
 
-    const [reservationsResult, countResult] = await Promise.all([pool.query(reservationsQuery, [req.user.tenant_id]), pool.query(countQuery, [req.user.tenant_id])]);
+    const [reservationsResult, countResult] = await Promise.all([pool.query(reservationsQuery, [req.user.tenant_id, twoWeeksPrior, twoWeeksAfter]), pool.query(countQuery, [req.user.tenant_id, twoWeeksPrior, twoWeeksAfter])]);
 
     const reservations = reservationsResult.rows;
     const totalReservations = parseInt(countResult.rows[0].count, 10);
+    const reservationsByWeek = {};
 
-    // Group reservations by week and include total guests count
-    const reservationsByWeek = reservations.reduce((acc, reservation) => {
-      const checkIn = moment(reservation.check_in);
-      const checkOut = moment(reservation.check_out).set({ hour: 15, minute: 0, second: 0 });
+    reservations.forEach((reservation) => {
+      const checkIn = moment(reservation.check_in).startOf("day");
+      const checkOut = moment(reservation.check_out).startOf("day").set({ hour: 15, minute: 0, second: 0 });
       const totalGuests = parseInt(reservation.total_guests, 10);
 
-      let currentWeekStart = checkIn.clone().startOf("isoWeek");
+      let currentDay = checkIn.clone();
 
-      while (currentWeekStart.isBefore(checkOut)) {
-        const weekStart = currentWeekStart.toISOString().split("T")[0];
-        if (!acc[weekStart]) {
-          acc[weekStart] = {
+      while (currentDay.isSameOrBefore(checkOut)) {
+        const weekStart = currentDay.clone().startOf("week").day(0).toISOString().split("T")[0];
+
+        if (!reservationsByWeek[weekStart]) {
+          reservationsByWeek[weekStart] = {
             reservations: [],
             totalGuestsForWeek: 0,
           };
         }
-        if (!acc[weekStart].reservations.some((res) => res.reservation_id === reservation.reservation_id)) {
-          acc[weekStart].reservations.push(reservation);
-          acc[weekStart].totalGuestsForWeek += totalGuests;
-        }
-        currentWeekStart.add(1, "weeks");
-      }
 
-      return acc;
-    }, {});
+        if (!reservationsByWeek[weekStart].reservations.some((res) => res.reservation_id === reservation.reservation_id)) {
+          reservationsByWeek[weekStart].reservations.push(reservation);
+          reservationsByWeek[weekStart].totalGuestsForWeek += totalGuests;
+        }
+
+        currentDay.add(1, "days");
+      }
+    });
 
     res.status(200).json({
       success: true,

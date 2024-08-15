@@ -109,11 +109,10 @@ const getAllGuests = catchAsyncErrors(async (req, res, next) => {
                r.guest_status
         FROM reservation_guests rg
         LEFT JOIN reservations r ON rg.reservation_id = r.reservation_id
-        ORDER BY rg.guest_id, r.${sortColumn} ${sortOrder}
       ) r ON g.guest_id = r.guest_id
-      WHERE first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1
+      WHERE g.first_name ILIKE $1 OR g.last_name ILIKE $1 OR g.email ILIKE $1
       AND tenant_id = $2
-      ORDER BY g.${sortColumn} ${sortOrder}
+      ORDER BY g.${sortColumn} ${sortOrder} 
       LIMIT $3 OFFSET $4
     `;
 
