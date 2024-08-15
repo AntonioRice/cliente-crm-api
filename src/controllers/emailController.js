@@ -12,7 +12,7 @@ const SESConfig = {
 aws.config.update(SESConfig);
 const ses = new aws.SES();
 
-const handleSendEmail = async (email, resetUrl) => {
+const handleSendEmail = async (email, subject, messageBody) => {
   try {
     const params = {
       Source: process.env.AWS_SES_SENDER,
@@ -22,20 +22,20 @@ const handleSendEmail = async (email, resetUrl) => {
       Message: {
         Body: {
           Text: {
-            Data: `You requested a password reset. Please make a PUT request to: \n\n ${resetUrl}`,
+            Data: messageBody,
           },
         },
         Subject: {
-          Data: "Password Reset Request",
+          Data: subject,
         },
       },
     };
 
     await ses.sendEmail(params).promise();
-    console.log("Password reset email sent successfully");
+    console.log(`${subject} email sent successfully`);
   } catch (err) {
-    console.error("Error sending password reset email:", err);
-    throw new ErrorHandler("Error sending email. Please try again later.", 500);
+    console.error(`Error sending ${subject} email:`, err);
+    throw new ErrorHandler(`Error sending email. Please try again later.`, 500);
   }
 };
 
