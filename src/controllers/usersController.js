@@ -19,12 +19,7 @@ const createUser = catchAsyncErrors(async (req, res, next) => {
 
   const resetToken = crypto.randomBytes(20).toString("hex");
   const resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
-  const resetPasswordExpires = new Date(Date.now() + 30 * 60 * 1000);
-
-  const client_url = process.env.CLIENT_URL || "http://localhost:3010";
-  const registrationUrl = `${client_url}/register/${resetToken}?first_name=${first_name}&last_name=${last_name}&email=${email}`;
-  const subject = "Cliente.io - New User Registration";
-  const messageBody = `Dear ${first_name} ${last_name},\n\nWelcome to Cliente.io! We are pleased to have you join us.\n\nYour username is: ${user_name}. To complete your registration and get started, please click the link below:\n\n${registrationUrl}\n\nIf you encounter any issues during the registration process, please don't hesitate to reach out to your designated Administrator for assistance.\n\nBest regards,\nThe Cliente.io Team`;
+  const resetPasswordExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   const insertQuery = `
     INSERT INTO users 
@@ -38,6 +33,11 @@ const createUser = catchAsyncErrors(async (req, res, next) => {
     const newUser = await pool.query(insertQuery, values);
 
     if (newUser.rows[0]) {
+      const client_url = process.env.CLIENT_URL || "http://localhost:3010";
+      const registrationUrl = `${client_url}/register/${resetToken}?user_id=${newUser.rows[0].user_id}&first_name=${first_name}&last_name=${last_name}&email=${email}`;
+      const subject = "Cliente.io - New User Registration";
+      const messageBody = `Dear ${first_name} ${last_name},\n\nWelcome to Cliente.io! We are pleased to have you join us.\n\nYour username is: ${user_name}. To complete your registration and get started, please click the link below:\n\n${registrationUrl}\n\nIf you encounter any issues during the registration process, please don't hesitate to reach out to your designated Administrator for assistance.\n\nBest regards,\nThe Cliente.io Team`;
+
       await handleSendEmail(email, subject, messageBody);
     }
 
@@ -225,28 +225,33 @@ const updateUserById = catchAsyncErrors(async (req, res, next) => {
 });
 
 const completeUserRegistration = catchAsyncErrors(async (req, res, next) => {
-  const { user_id, phone_number, preferences, password, first_name, last_name, email } = req.body;
+  const { phone_number, preferences, newPassword, first_name, last_name, email } = req.body;
+  const passwordToken = crypto.createHash("sha256").update(req.params.token).digest("hex");
 
-  if (!user_id || !phone_number || !preferences || !password || !first_name || !last_name || !email) {
-    return res.status(400).json({ message: "All fields are required" });
+  const query = `
+  SELECT * FROM users
+  WHERE reset_password_token = $1 AND reset_password_expires > $2
+  `;
+
+  const result = await pool.query(query, [passwordToken, new Date(Date.now())]);
+
+  if (result.rows.length === 0) {
+    return next(new ErrorHandler("Invalid or expired token", 400));
   }
 
-  if (isNaN(parseInt(user_id, 10))) {
-    return res.status(400).json({ message: "Invalid user_id" });
-  }
+  const user_id = result.rows[0].user_id;
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     const status = "Active";
     const query = `
       UPDATE users
       SET first_name = $1, last_name = $2, email = $3, phone_number = $4, preferences = $5, password = $6, status = $7, updated_date = CURRENT_TIMESTAMP
       WHERE user_id = $8
-      RETURNING *;
+      RETURNING *
     `;
 
     const values = [first_name, last_name, email, phone_number, JSON.stringify(preferences), hashedPassword, status, parseInt(user_id, 10)];
-
     const result = await pool.query(query, values);
 
     if (result.rowCount === 0) {
