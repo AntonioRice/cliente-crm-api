@@ -135,7 +135,7 @@ const deleteUserById = catchAsyncErrors(async (req, res, next) => {
     await pool.query(query, [userId, tenant_id]);
     res.status(204).json({
       success: true,
-      message: `User ${userId}, successfully deleted`,
+      message: `User ${userId}, successfully deleted from tenant ${tenant_id}`,
     });
   } catch (err) {
     return next(new ErrorHandler(`Error: Unable to delete User: ${userId}. Message: ${err.message}`, 500));
