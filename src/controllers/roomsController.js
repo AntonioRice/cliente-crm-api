@@ -1,3 +1,4 @@
+const pool = require("../database/db");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorHandler");
 

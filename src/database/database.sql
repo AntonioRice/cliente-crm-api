@@ -78,6 +78,17 @@ CREATE TABLE reservation_guests (
     FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id)
 );
 
+-- CREATE Rooms Table
+CREATE TABLE rooms (
+    room_id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    number INT NOT NULL UNIQUE,
+    status BOOLEAN DEFAULT false,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
 -- {
 --     "language": "en",
 --     "ui_mode": "dark",
