@@ -4,7 +4,7 @@ const ErrorHandler = require("../utils/errorHandler");
 
 const createRoom = catchAsyncErrors(async (req, res, next) => {
   const tenant_id = req.body.tenant_id || req.user.tenant_id;
-  const { number, name, status } = req.body;
+  const { number, name, occupied } = req.body;
 
   const query = "SELECT * FROM rooms WHERE number = $1";
 
@@ -16,11 +16,11 @@ const createRoom = catchAsyncErrors(async (req, res, next) => {
 
   const insertQuery = `
   INSERT INTO rooms
-  (tenant_id, number, name, status)
+  (tenant_id, number, name, occupied)
   VALUES($1, $2, $3, $4)
   RETURNING *`;
 
-  const values = [tenant_id, number, name, status];
+  const values = [tenant_id, number, name, occupied];
 
   try {
     const newRoom = await pool.query(insertQuery, values);
@@ -79,17 +79,17 @@ const getRoomById = catchAsyncErrors(async (req, res, next) => {
 
 const updateRoom = catchAsyncErrors(async (req, res, next) => {
   const tenant_id = req.user.tenant_id;
-  const { number, name, status } = req.body;
+  const { number, name, occupied } = req.body;
   const room_id = req.params.id;
 
   const query = `
   UPDATE rooms 
-  SET number = $1, name = $2, status = $3 
+  SET number = $1, name = $2, occupied = $3 
   WHERE room_id = $4 AND tenant_id = $5
   RETURNING *`;
 
   try {
-    const results = await pool.query(query, [number, name, status, room_id, tenant_id]);
+    const results = await pool.query(query, [number, name, occupied, room_id, tenant_id]);
     res.status(200).json({
       success: true,
       message: `Room number ${number} successfully update for tenant ${tenant_id}`,

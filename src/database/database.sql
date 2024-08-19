@@ -83,7 +83,7 @@ CREATE TABLE rooms (
     room_id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     number INT NOT NULL UNIQUE,
-    status BOOLEAN DEFAULT false,
+    occupied BOOLEAN DEFAULT false,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
