@@ -73,6 +73,9 @@ const createReservation = catchAsyncErrors(async (req, res, next) => {
       }
     }
 
+    // Update the occupied status of the rooms
+    await pool.query(`UPDATE rooms SET occupied = true WHERE number = ANY($1::int[])`, [room_numbers]);
+
     res.status(201).json({
       success: true,
       message: "Reservation successfully created",

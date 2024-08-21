@@ -39,7 +39,7 @@ const createRoom = catchAsyncErrors(async (req, res, next) => {
 const getRooms = catchAsyncErrors(async (req, res, next) => {
   const tenant_id = req.user.tenant_id;
 
-  const query = `SELECT * FROM rooms WHERE tenant_id = $1`;
+  const query = `SELECT * FROM rooms WHERE tenant_id = $1 ORDER BY number ASC`;
 
   try {
     const results = await pool.query(query, [tenant_id]);
@@ -82,22 +82,37 @@ const updateRoom = catchAsyncErrors(async (req, res, next) => {
   const { number, name, occupied } = req.body;
   const room_id = req.params.id;
 
-  const query = `
-  UPDATE rooms 
-  SET number = $1, name = $2, occupied = $3 
-  WHERE room_id = $4 AND tenant_id = $5
-  RETURNING *`;
+  console.log(number, name, occupied);
+  const checkRoomExistsQuery = `
+      SELECT * FROM rooms WHERE room_id = $1 AND tenant_id = $2
+    `;
+
+  const updateRoomQuery = `
+      UPDATE rooms 
+      SET number = $1, name = $2, occupied = $3 
+      WHERE room_id = $4 AND tenant_id = $5
+      RETURNING *`;
 
   try {
-    const results = await pool.query(query, [number, name, occupied, room_id, tenant_id]);
+    const roomExists = await pool.query(checkRoomExistsQuery, [room_id, tenant_id]);
+
+    if (roomExists.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `Room with ID ${room_id} not found for tenant ${tenant_id}`,
+      });
+    }
+
+    const results = await pool.query(updateRoomQuery, [number, name, occupied, room_id, tenant_id]);
+
     res.status(200).json({
       success: true,
-      message: `Room number ${number} successfully update for tenant ${tenant_id}`,
-      data: results.rows[0],
+      message: `Room number ${number} successfully updated for tenant ${tenant_id}`,
+      data: results.rows,
     });
   } catch (error) {
     console.log(error);
-    return next(new ErrorHandler(`Error: Unable to update room number ${number} for tenant ${tenant_id}`));
+    return next(new ErrorHandler(`Error: Unable to update room number ${number} for tenant ${tenant_id}. ${error.message}`, 500));
   }
 });
 
