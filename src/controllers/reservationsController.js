@@ -21,7 +21,18 @@ const createReservation = catchAsyncErrors(async (req, res, next) => {
       last_name: primaryGuest.last_name,
     });
 
-    const guestStatus = calculateGuestStatus(check_out);
+    // Set checkout time to 12 PM (noon) Ecuador time
+    const checkOutAtNoon = moment
+      .tz(check_out, "America/Guayaquil")
+      .set({
+        hour: 12,
+        minute: 0,
+        second: 0,
+        millisecond: 0,
+      })
+      .format();
+
+    const guestStatus = calculateGuestStatus(checkOutAtNoon);
 
     const reservationResult = await pool.query(
       `
@@ -30,7 +41,7 @@ const createReservation = catchAsyncErrors(async (req, res, next) => {
       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
       RETURNING *
       `,
-      [tenant_id, primary_guest_id, check_in, check_out, `{${room_numbers}}`, payment_method, total_amount, payment_status, guestStatus, primary_guest]
+      [tenant_id, primary_guest_id, check_in, checkOutAtNoon, `{${room_numbers}}`, payment_method, total_amount, payment_status, guestStatus, primary_guest]
     );
 
     const reservationId = reservationResult.rows[0].reservation_id;
