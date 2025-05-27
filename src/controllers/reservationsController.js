@@ -5,7 +5,6 @@ const moment = require("moment-timezone");
 
 const createReservation = catchAsyncErrors(async (req, res, next) => {
   const { primary_guest_id, room_numbers, check_in, check_out, payment_method, total_amount, payment_status, additional_guests } = req.body;
-
   const tenant_id = req.body.tenant_id || req.user.tenant_id;
 
   try {
@@ -41,7 +40,7 @@ const createReservation = catchAsyncErrors(async (req, res, next) => {
       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
       RETURNING *
       `,
-      [tenant_id, primary_guest_id, check_in, checkOutAtNoon, `{${room_numbers}}`, payment_method, total_amount, payment_status, guestStatus, primary_guest]
+      [tenant_id, primary_guest_id, check_in, checkOutAtNoon, `{${room_numbers}}`, pm, total_amount, ps, guestStatus, primary_guest]
     );
 
     const reservationId = reservationResult.rows[0].reservation_id;
@@ -138,13 +137,22 @@ const getReservationById = catchAsyncErrors(async (req, res, next) => {
 
   try {
     const reservationsQuery = `
-      SELECT r.*, 
-             JSON_AGG(g.*) FILTER (WHERE g.guest_id IS NOT NULL AND g.guest_id != r.primary_guest_id) AS additional_guests
+      SELECT 
+        r.*, 
+        JSON_AGG(g.*) FILTER (WHERE g.guest_id IS NOT NULL AND g.guest_id != r.primary_guest_id) AS additional_guests,
+        JSON_BUILD_OBJECT(
+          'guest_id', pg.guest_id,
+          'first_name', pg.first_name,
+          'last_name', pg.last_name,
+          'email', pg.email,
+          'phone_number', pg.phone_number
+        ) AS primary_guest
       FROM reservations r
       LEFT JOIN reservation_guests rg ON r.reservation_id = rg.reservation_id
       LEFT JOIN guests g ON rg.guest_id = g.guest_id
+      LEFT JOIN guests pg ON r.primary_guest_id = pg.guest_id
       WHERE r.reservation_id = $1 AND r.tenant_id = $2
-      GROUP BY r.reservation_id
+      GROUP BY r.reservation_id, pg.guest_id
     `;
     const reservationsResponse = await pool.query(reservationsQuery, [reservation_id, tenant_id]);
     const reservation = reservationsResponse.rows[0];
