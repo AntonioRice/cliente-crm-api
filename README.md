@@ -4,7 +4,7 @@
 
 A comprehensive REST API for Cliente, a hotel guest management SaaS platform. This API provides complete hotel operations management including guest tracking, reservations, room management, and multi-tenant architecture.
 
-## 🏨 Features
+## Features
 
 ### Guest Management
 
