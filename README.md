@@ -39,7 +39,7 @@ A comprehensive REST API for Cliente, a hotel guest management SaaS platform. Th
 - **Password Management**: Forgot/reset password functionality
 - **Profile Management**: User profiles with image upload support
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 **Backend Framework:**
 
@@ -64,7 +64,7 @@ A comprehensive REST API for Cliente, a hotel guest management SaaS platform. Th
 - Cross-env for environment variable management
 - Moment.js for timezone handling
 
-## 📋 API Endpoints
+## API Endpoints
 
 ### Authentication
 
@@ -130,7 +130,7 @@ PUT    /api/users/profile-picture/:id - Update profile picture
 PUT    /api/complete-registration/:token - Complete user registration
 ```
 
-## 🔐 Role-Based Access Control
+## Role-Based Access Control
 
 **SuperAdmin**
 
@@ -150,7 +150,7 @@ PUT    /api/complete-registration/:token - Complete user registration
 - Guest and reservation management
 - Room status updates
 
-## 🔧 Installation & Setup
+## Installation & Setup
 
 ### Prerequisites
 
@@ -179,7 +179,7 @@ npm run dev
 npm start
 ```
 
-## 🌍 Environment Variables
+## Environment Variables
 
 ```env
 NODE_ENV=production
@@ -192,7 +192,7 @@ AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 AWS_S3_BUCKET=your_s3_bucket_name
 ```
 
-## 🏗️ Architecture Highlights
+## Architecture Highlights
 
 - **Multi-tenant SaaS Architecture**: Scalable design supporting multiple hotel properties
 - **RESTful API Design**: Clean, intuitive endpoints following REST principles
@@ -201,7 +201,7 @@ AWS_S3_BUCKET=your_s3_bucket_name
 - **File Upload Integration**: Seamless AWS S3 integration for media management
 - **Error Handling**: Comprehensive error handling and validation
 
-## 👨‍💻 Creator & Developer
+## Creator & Developer
 
 **Antonio Rice**  
 Full-Stack Software Engineer  
